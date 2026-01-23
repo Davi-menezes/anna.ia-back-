@@ -1,7 +1,7 @@
 import AppDataSource from '../config/data-source';
 import { User } from '../entities/User';
 import Stripe from 'stripe';
-import { MercadoPagoConfig, Payment, MerchantOrder } from 'mercadopago';
+import { MercadoPagoConfig, Payment, MerchantOrder, PreApproval } from 'mercadopago';
 import { config } from '../config/config';
 
 // Inicializa o cliente do Mercado Pago
@@ -84,6 +84,37 @@ export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
     } else if (topic === 'merchant_order') {
       const merchantOrderClient = new MerchantOrder(mpClient);
       merchantOrder = await merchantOrderClient.get({ merchantOrderId: id });
+    } else if (topic === 'subscription_preapproval') {
+      const preApprovalClient = new PreApproval(mpClient);
+      const preApproval = await preApprovalClient.get({ id });
+
+      const userId = preApproval.external_reference;
+      if (!userId) {
+        return { success: false, error: 'UserId (external_reference) não encontrado na assinatura' };
+      }
+
+      const userRepository = AppDataSource.getRepository(User);
+      const user = await userRepository.findOne({ where: { id: userId } });
+
+      if (!user) {
+        return { success: false, error: 'Usuário não encontrado para assinatura' };
+      }
+
+      if (preApproval.status === 'authorized') {
+        const previousCredits = user.credits;
+        user.credits = 999; // Unlimited Plan
+        await userRepository.save(user);
+
+        logger.info('User upgraded to UNLIMITED via Subscription', {
+          userId,
+          subscriptionId: id,
+          previousCredits
+        });
+
+        return { success: true, message: 'Assinatura ilimitada ativada com sucesso.' };
+      }
+
+      return { success: true, message: `Status da assinatura: ${preApproval.status}` };
     }
 
     if (!merchantOrder) {
