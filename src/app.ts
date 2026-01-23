@@ -27,17 +27,25 @@ export function createApp(): Application {
   const allowedOrigins = [
     'http://localhost:4200',
     'http://localhost:3000',
-    'https://annaia.vercel.app'
+    'https://annaia.vercel.app',
+    /\.vercel\.app$/ // Permite qualquer subdomínio da Vercel (previews)
   ];
   const corsOptions = {
     origin: function (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) {
       // Permite requisições sem origem (como mobile apps ou curl)
       if (!origin) return callback(null, true);
 
-      if (allowedOrigins.indexOf(origin) === -1) {
+      const isAllowed = allowedOrigins.some(allowed => {
+        if (allowed instanceof RegExp) return allowed.test(origin);
+        return allowed === origin;
+      });
+
+      if (!isAllowed) {
+        logger.warn(`CORS BLOQUEADO: Origem ${origin} não autorizada.`);
         const msg = `A política CORS para ${origin} não permite acesso.`;
         return callback(new Error(msg), false);
       }
+
       return callback(null, true);
     },
     credentials: true,

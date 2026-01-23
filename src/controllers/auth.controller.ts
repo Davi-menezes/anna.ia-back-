@@ -43,8 +43,10 @@ export const register = async (req: Request, res: Response) => {
     const verificationToken = user.generateEmailVerificationToken();
     await userRepository.save(user);
 
-    // Envia o e-mail de verificação
-    await sendVerificationEmail(user.email, verificationToken, user.name);
+    // Envia o e-mail de verificação (não-bloqueante para evitar lentidão no cadastro)
+    sendVerificationEmail(user.email, verificationToken, user.name).catch(err => {
+      logger.error('Erro ao enviar e-mail de verificação em background:', err);
+    });
 
     // Retorna a resposta sem informações sensíveis
     res.status(201).json({
