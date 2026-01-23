@@ -19,19 +19,22 @@ dotenv.config({
   path: path.resolve(process.cwd(), '.env'),
 });
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 const AppDataSource = new DataSource({
   type: 'postgres',
-  host: process.env.DB_HOST || 'localhost',
-  port: parseInt(process.env.DB_PORT || '5432', 10),
-  username: process.env.DB_USERNAME || 'postgres',
-  password: process.env.DB_PASSWORD || 'postgres',
-  database: process.env.DB_NAME || 'postgres',
+  url: process.env.DATABASE_URL,
+  host: process.env.DATABASE_URL ? undefined : (process.env.DB_HOST || 'localhost'),
+  port: process.env.DATABASE_URL ? undefined : parseInt(process.env.DB_PORT || '5432', 10),
+  username: process.env.DATABASE_URL ? undefined : (process.env.DB_USERNAME || 'postgres'),
+  password: process.env.DATABASE_URL ? undefined : (process.env.DB_PASSWORD || 'postgres'),
+  database: process.env.DATABASE_URL ? undefined : (process.env.DB_NAME || 'postgres'),
   synchronize: false,
-  logging: process.env.NODE_ENV === 'development',
-  entities: [User, StudyPlan, StudyPlanSubject, WeeklySchedule], // Add other entities here
+  logging: !isProduction,
+  entities: [User, StudyPlan, StudyPlanSubject, WeeklySchedule],
   migrations: [path.resolve(__dirname, '..', 'migrations', '*.{ts,js}')],
   subscribers: [],
-  ssl: false, // Set to true if using SSL
+  ssl: isProduction ? { rejectUnauthorized: false } : false,
 });
 
 export default AppDataSource;
