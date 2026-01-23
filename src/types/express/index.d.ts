@@ -1,9 +1,9 @@
-import { IUser } from '../../models/User';
+import { User } from '../../entities/User';
 
 declare global {
   namespace Express {
     interface Request {
-      user?: IUser;
+      user?: Omit<User, 'password' | 'generateEmailVerificationToken'>;
       file?: Express.Multer.File;
     }
   }

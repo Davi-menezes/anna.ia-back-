@@ -4,8 +4,12 @@
   "description": "Backend para o projeto Anna IA",
   "main": "dist/server.js",
   "scripts": {
+    "typeorm": "typeorm-ts-node-commonjs",
+    "migration:generate": "npm run typeorm -- migration:generate -d src/config/data-source.ts",
+    "migration:run": "npm run typeorm -- migration:run -d src/config/data-source.ts",
+    "migration:revert": "npm run typeorm -- migration:revert -d src/config/data-source.ts",
     "start": "node dist/server.js",
-    "dev": "ts-node-dev --respawn --transpile-only --ignore-watch node_modules --no-notify src/server.ts",
+    "dev": "ts-node-dev -r tsconfig-paths/register --respawn --transpile-only --ignore-watch node_modules --no-notify src/server.ts",
     "build": "tsc",
     "build:watch": "tsc -w",
     "test": "jest",
@@ -18,8 +22,8 @@
     "type-check": "tsc --noEmit"
   },
   "dependencies": {
-    "@google/generative-ai": "^0.5.0",
-    "@types/express-validator": "^2.20.33",
+    "@dataconnect/generated": "file:src/dataconnect-generated",
+    "@google/generative-ai": "^0.24.1",
     "@types/multer": "^2.0.0",
     "@types/nodemailer": "^7.0.4",
     "bcryptjs": "^2.4.3",
@@ -32,7 +36,8 @@
     "express-validator": "^7.3.1",
     "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.3",
-    "mercadopago": "^1.5.17",
+    "mercadopago": "^2.12.0",
+    "module-alias": "^2.2.3",
     "mongoose": "^7.8.8",
     "morgan": "^1.10.1",
     "multer": "^2.0.2",
@@ -41,6 +46,10 @@
     "passport-apple": "^2.0.2",
     "passport-google-oauth20": "^2.0.0",
     "passport-microsoft": "^2.1.0",
+    "pg": "^8.16.3",
+    "reflect-metadata": "^0.2.2",
+    "stripe": "^20.2.0",
+    "typeorm": "^0.3.28",
     "uuid": "^13.0.0",
     "winston": "^3.19.0"
   },
@@ -51,6 +60,7 @@
     "@types/express": "^4.17.25",
     "@types/jest": "^29.5.14",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/module-alias": "^2.0.4",
     "@types/morgan": "^1.9.10",
     "@types/node": "^20.19.27",
     "@types/passport": "^1.0.17",
@@ -66,9 +76,19 @@
     "ts-jest": "^29.4.6",
     "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
+    "tsconfig-paths": "^4.2.0",
     "typescript": "^5.9.3"
   },
   "engines": {
     "node": ">=16.0.0"
+  },
+  "_moduleAliases": {
+    "@config": "./dist/config",
+    "@controllers": "./dist/controllers",
+    "@middlewares": "./dist/middlewares",
+    "@models": "./dist/models",
+    "@routes": "./dist/routes",
+    "@services": "./dist/services",
+    "@utils": "./dist/utils"
   }
 }

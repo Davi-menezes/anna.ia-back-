@@ -1,6 +1,12 @@
 import mongoose, { Document, Types } from 'mongoose';
 import crypto from 'crypto';
 
+export enum UserStatus {
+  CREATED = 'created',
+  VERIFIED = 'verified',
+  PREMIUM = 'premium'
+}
+
 export interface IUser extends Document<Types.ObjectId> {
   _id: Types.ObjectId;
   email: string;
@@ -8,7 +14,7 @@ export interface IUser extends Document<Types.ObjectId> {
   googleId?: string;
   name: string;
   profilePicture?: string;
-  isEmailVerified: boolean;
+  status: UserStatus;
   emailVerificationToken?: string;
   emailVerificationExpires?: Date;
   createdAt: Date;
@@ -40,9 +46,10 @@ const userSchema = new mongoose.Schema<IUser>(
       type: String,
       default: '',
     },
-    isEmailVerified: {
-      type: Boolean,
-      default: false,
+    status: {
+      type: String,
+      enum: Object.values(UserStatus),
+      default: UserStatus.CREATED
     },
     emailVerificationToken: String,
     emailVerificationExpires: Date,
@@ -59,17 +66,17 @@ const userSchema = new mongoose.Schema<IUser>(
 
 // Gerar token para verificação de e-mail
 userSchema.methods.generateEmailVerificationToken = function(): string {
-  const verificationToken = crypto.randomBytes(20).toString('hex');
-  
-  this.emailVerificationToken = crypto
-    .createHash('sha256')
-    .update(verificationToken)
-    .digest('hex');
-    
-  // Token expira em 24 horas
-  this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  
-  return verificationToken;
+  const token = crypto.randomBytes(32).toString('hex');
+  this.emailVerificationToken = token;
+  this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
+  return token;
+};
+
+// Atualizar status após verificação de e-mail
+userSchema.methods.verifyEmail = function(): void {
+  this.status = UserStatus.VERIFIED;
+  this.emailVerificationToken = undefined;
+  this.emailVerificationExpires = undefined;
 };
 
 export const User = mongoose.model<IUser>('User', userSchema);

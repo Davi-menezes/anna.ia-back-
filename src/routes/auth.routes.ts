@@ -26,4 +26,8 @@ router.get('/me', verifyToken, getCurrentUser);
 import verificationRoutes from './verification.routes';
 router.use(verificationRoutes);
 
+// Rotas de redefinição de senha
+import passwordRoutes from './password.routes';
+router.use(passwordRoutes);
+
 export default router;

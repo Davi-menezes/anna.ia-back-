@@ -2,9 +2,8 @@ import dotenv from 'dotenv';
 import path from 'path';
 
 // Carrega as variáveis de ambiente
-dotenv.config({
-  path: path.resolve(process.cwd(), process.env.NODE_ENV === 'production' ? '.env.production' : '.env.development')
-});
+// Carrega as variáveis de ambiente do arquivo .env padrão
+dotenv.config();
 
 export const config = {
   // Configurações do servidor
@@ -41,9 +40,10 @@ export const config = {
   // OAuth
   oauth: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/api/auth/google/callback',
+      clientId: process.env.GOOGLE_CLIENT_ID || 's462507580682-vqm8bl9br5c27834c4hgr4ktebj71qbh.apps.googleusercontent.com',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET || 'GOCSPX-4b4Y4Z4Z4Z4Z4Z4Z4Z4Z4Z4Z4Z4Z4Z',
+      callbackURL: process.env.GOOGLE_CALLBACK_URL || 'http://localhost:3001/api/v1/auth/google/callback',
+      frontendCallbackURL: process.env.FRONTEND_CALLBACK_URL || 'http://localhost:4200/auth/callback',
     },
     microsoft: {
       clientId: process.env.MICROSOFT_CLIENT_ID || '',
@@ -53,15 +53,22 @@ export const config = {
     },
   },
 
-  // Mercado Pago
-  mercadoPago: {
-    accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || '',
-    publicKey: process.env.MERCADOPAGO_PUBLIC_KEY || '',
-  },
-
   // Gemini AI
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || '',
+  },
+
+  // Stripe
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY || '',
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET || '',
+  },
+
+  // Mercado Pago
+  mercadopago: {
+    accessToken: process.env.MERCADOPAGO_ACCESS_TOKEN || 'APP_USR-4913856119180299-010815-e07478d53a7150a5b525aa42a4d20028-1401398354',
+    publicKey: process.env.MERCADOPAGO_PUBLIC_KEY || 'APP_USR-fadad404-de6b-43d8-a949-7b2976282a31',
+    webhookSecret: process.env.MERCADOPAGO_WEBHOOK_SECRET || '5b4c8978487eef0dc4957b80e834e848668677763ea8bab8fcf45c7e79d1b996',
   },
 };
 

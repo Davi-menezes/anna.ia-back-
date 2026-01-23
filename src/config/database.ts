@@ -5,9 +5,7 @@ import { logger } from '../utils/logger';
 // Conecta ao MongoDB
 export const connectDB = async (): Promise<Connection> => {
   try {
-    const connection = await mongoose.connect(config.database.uri, {
-      ...config.database.options,
-    });
+    const connection = await mongoose.connect(config.database.uri);
 
     logger.info('✅ Conectado ao MongoDB');
     return connection.connection;

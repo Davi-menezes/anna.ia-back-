@@ -11,12 +11,23 @@ export const validate = (validations: ValidationChain[]) => {
       return next();
     }
 
-    logger.warn('Validation failed', { errors: errors.array() });
+    const errorArray = errors.array();
+    logger.warn('Validation failed', { 
+      errors: errorArray,
+      body: req.body 
+    });
+    
+    // Criar mensagem mais detalhada
+    const errorMessages = errorArray.map((err: any) => {
+      const field = err.param || err.path || 'campo';
+      const msg = err.msg || 'inválido';
+      return `${field}: ${msg}`;
+    }).join('. ');
     
     res.status(400).json({
       success: false,
-      message: 'Erro de validação',
-      errors: errors.array()
+      message: errorMessages || 'Erro de validação',
+      errors: errorArray
     });
   };
 };

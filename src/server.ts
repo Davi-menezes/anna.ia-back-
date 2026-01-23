@@ -3,7 +3,7 @@ import 'reflect-metadata';
 import { createServer, Server } from 'http';
 import { config } from './config/config';
 import { createApp } from './app';
-import { connectDB } from './config/database';
+import AppDataSource from './config/data-source';
 import { logger } from './utils/logger';
 
 // Cria a aplicação Express
@@ -13,20 +13,19 @@ const server: Server = createServer(app);
 // Conecta ao banco de dados e inicia o servidor
 async function startServer(): Promise<void> {
   try {
-    // Conecta ao MongoDB
-    await connectDB();
-    logger.info('✅ Conectado ao banco de dados');
-
-    // Inicia o servidor
+    // Initialize database connection
+    await AppDataSource.initialize();
+    logger.info('✅ Connected to PostgreSQL database');
+    // Start the server
     server.listen(config.port, () => {
       logger.info(`
-        🚀 Servidor rodando em http://localhost:${config.port}
-        📊 Ambiente: ${config.nodeEnv}
+        🚀 Server running at http://localhost:${config.port}
+        📊 Environment: ${config.nodeEnv}
         ⏰ ${new Date().toLocaleString()}
       `);
     });
   } catch (error) {
-    logger.error('❌ Falha ao iniciar o servidor:', error);
+    logger.error('❌ Failed to start server:', error);
     process.exit(1);
   }
 }

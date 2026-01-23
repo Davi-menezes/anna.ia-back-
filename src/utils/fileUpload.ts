@@ -46,21 +46,21 @@ const handleUploadErrors = (err: any, req: Request, res: any, next: any) => {
   if (err instanceof multer.MulterError) {
     // A Multer error occurred when uploading
     if (err.code === 'LIMIT_FILE_SIZE') {
-      return res.status(400).json({ 
-        success: false, 
-        message: 'File size too large. Maximum size is 5MB.' 
+      return res.status(400).json({
+        success: false,
+        message: 'File size too large. Maximum size is 5MB.'
       });
     }
-    return res.status(400).json({ 
-      success: false, 
-      message: err.message 
+    return res.status(400).json({
+      success: false,
+      message: err.message
     });
   } else if (err) {
     // An unknown error occurred
     logger.error('File upload error:', err);
-    return res.status(500).json({ 
-      success: false, 
-      message: 'Error uploading file' 
+    return res.status(500).json({
+      success: false,
+      message: 'Error uploading file'
     });
   }
   next();
@@ -73,10 +73,15 @@ export { upload, handleUploadErrors };
 export const deleteFile = (filePath: string) => {
   const fs = require('fs');
   const path = require('path');
-  
-  // Construct the full path to the file
-  const fullPath = path.join(__dirname, '../../', filePath);
-  
+
+  if (!filePath) return false;
+
+  // If the path doesn't start with 'uploads/', prepend it
+  const sanitizedPath = filePath.startsWith('uploads/') ? filePath : `uploads/${filePath}`;
+
+  // Construct the full path relative to this file's location (src/utils/)
+  const fullPath = path.join(__dirname, '../../', sanitizedPath);
+
   // Check if file exists before trying to delete
   if (fs.existsSync(fullPath)) {
     try {
@@ -86,6 +91,8 @@ export const deleteFile = (filePath: string) => {
       logger.error('Error deleting file:', err);
       return false;
     }
+  } else {
+    logger.warn(`File not found for deletion: ${fullPath}`);
   }
   return false;
 };

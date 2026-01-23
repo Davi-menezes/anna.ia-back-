@@ -13,8 +13,16 @@ const transporter = nodemailer.createTransport({
 });
 
 export const sendVerificationEmail = async (email: string, token: string, name: string): Promise<void> => {
-  const verificationUrl = `${config.frontendUrl}/verify-email?token=${token}`;
-  
+  const verificationUrl = `${config.frontendUrl}/verify-email/${token}`;
+
+  // MOCK EMAIL IF NO CREDENTIALS
+  if (!config.smtp.user || !config.smtp.pass) {
+    logger.warn('⚠️ SMTP credentials missing. Mocking email sending.');
+    logger.info(`📧 [MOCK EMAIL] To: ${email} | Subject: Verifique seu e-mail`);
+    logger.info(`🔗 Verification URL: ${verificationUrl}`);
+    return;
+  }
+
   const mailOptions = {
     from: `"Anna IA" <${config.smtp.from}>`,
     to: email,
@@ -47,13 +55,23 @@ export const sendVerificationEmail = async (email: string, token: string, name: 
     logger.info(`E-mail de verificação enviado para ${email}`);
   } catch (error) {
     logger.error(`Erro ao enviar e-mail de verificação para ${email}:`, error);
+    // Don't crash the registration flow if email fails in dev, but maybe we should? 
+    // For now, let's allow it to fail if credentials WERE provided but failed.
     throw new Error('Falha ao enviar e-mail de verificação');
   }
 };
 
 export const sendPasswordResetEmail = async (email: string, token: string, name: string): Promise<void> => {
   const resetUrl = `${config.frontendUrl}/reset-password?token=${token}`;
-  
+
+  // MOCK EMAIL IF NO CREDENTIALS
+  if (!config.smtp.user || !config.smtp.pass) {
+    logger.warn('⚠️ SMTP credentials missing. Mocking password reset email.');
+    logger.info(`📧 [MOCK EMAIL] To: ${email} | Subject: Redefinição de Senha`);
+    logger.info(`🔗 Reset URL: ${resetUrl}`);
+    return;
+  }
+
   const mailOptions = {
     from: `"Anna IA" <${config.smtp.from}>`,
     to: email,

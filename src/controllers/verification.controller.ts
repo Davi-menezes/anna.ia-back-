@@ -1,30 +1,57 @@
 import { Request, Response } from 'express';
-import { User } from '../models/User';
+import { User, UserStatus } from '../entities/User';
+import AppDataSource from '../config/data-source';
 import { sendVerificationEmail } from '../services/email.service';
 import { logger } from '../utils/logger';
+import { MoreThan } from 'typeorm';
 
 export const verifyEmail = async (req: Request, res: Response) => {
   try {
-    const { token } = req.params;
+    // Suporta tanto path parameter quanto query parameter
+    const token = req.params.token || req.query.token as string;
+    
+    if (!token) {
+      return res.status(400).json({
+        success: false,
+        message: 'Token de verificação não fornecido.'
+      });
+    }
 
-    // Encontra o usuário com o token de verificação
-    const user = await User.findOne({
-      emailVerificationToken: token,
-      emailVerificationExpires: { $gt: new Date() }
+    logger.info(`Tentativa de verificação de email com token: ${token.substring(0, 10)}...`);
+    const userRepository = AppDataSource.getRepository(User);
+
+    // Primeiro, tenta encontrar o usuário apenas pelo token (para debug)
+    const userByToken = await userRepository.findOne({
+      where: {
+        emailVerificationToken: token
+      }
     });
 
-    if (!user) {
+    if (!userByToken) {
+      logger.warn(`Token não encontrado: ${token.substring(0, 10)}...`);
       return res.status(400).json({
         success: false,
         message: 'Token de verificação inválido ou expirado.'
       });
     }
 
+    // Verifica se o token não expirou
+    if (!userByToken.emailVerificationExpires || userByToken.emailVerificationExpires <= new Date()) {
+      logger.warn(`Token expirado para usuário: ${userByToken.email}`);
+      return res.status(400).json({
+        success: false,
+        message: 'Token de verificação expirado. Por favor, solicite um novo link.'
+      });
+    }
+
+    const user = userByToken;
+
     // Atualiza o usuário
+    user.status = UserStatus.VERIFIED;
     user.isEmailVerified = true;
     user.emailVerificationToken = undefined;
     user.emailVerificationExpires = undefined;
-    await user.save();
+    await userRepository.save(user);
 
     logger.info(`E-mail verificado com sucesso para o usuário: ${user.email}`);
 
@@ -32,10 +59,10 @@ export const verifyEmail = async (req: Request, res: Response) => {
       success: true,
       message: 'E-mail verificado com sucesso!',
       user: {
-        id: user._id,
+        id: user.id,
         email: user.email,
         name: user.name,
-        isEmailVerified: user.isEmailVerified
+        status: user.status
       }
     });
   } catch (error) {
@@ -50,9 +77,10 @@ export const verifyEmail = async (req: Request, res: Response) => {
 export const resendVerificationEmail = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
+    const userRepository = AppDataSource.getRepository(User);
 
     // Encontra o usuário pelo e-mail
-    const user = await User.findOne({ email });
+    const user = await userRepository.findOneBy({ email });
 
     if (!user) {
       return res.status(404).json({
@@ -61,7 +89,8 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
       });
     }
 
-    if (user.isEmailVerified) {
+    // Verifica se o usuário já foi verificado
+    if (user.status === UserStatus.VERIFIED || user.status === UserStatus.PREMIUM) {
       return res.status(400).json({
         success: false,
         message: 'Este e-mail já foi verificado.'
@@ -70,7 +99,7 @@ export const resendVerificationEmail = async (req: Request, res: Response) => {
 
     // Gera um novo token de verificação
     const verificationToken = user.generateEmailVerificationToken();
-    await user.save();
+    await userRepository.save(user);
 
     // Envia o e-mail de verificação
     await sendVerificationEmail(user.email, verificationToken, user.name);
