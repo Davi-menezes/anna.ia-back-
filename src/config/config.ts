@@ -34,7 +34,7 @@ export const config = {
     secure: process.env.SMTP_SECURE === 'true',
     user: process.env.SMTP_USER || '',
     pass: process.env.SMTP_PASS || '',
-    from: process.env.EMAIL_FROM || 'no-reply@annaia.com',
+    from: process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@annaia.com',
   },
 
   // OAuth

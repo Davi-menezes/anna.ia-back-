@@ -4,12 +4,15 @@ import { logger } from '../utils/logger';
 
 const transporter = nodemailer.createTransport({
   host: config.smtp.host,
-  port: config.smtp.port,
-  secure: config.smtp.secure,
+  port: 465, // Use 465 for SSL (more stable in cloud environments like Render)
+  secure: true, // true for 465, false for other ports
   auth: {
     user: config.smtp.user,
     pass: config.smtp.pass,
   },
+  // Aumentar o tempo limite para evitar erros de rede instável
+  connectionTimeout: 10000, // 10 segundos
+  greetingTimeout: 10000,
 });
 
 export const sendVerificationEmail = async (email: string, token: string, name: string): Promise<void> => {
