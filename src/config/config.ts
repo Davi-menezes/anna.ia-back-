@@ -29,12 +29,12 @@ export const config = {
 
   // SMTP
   smtp: {
-    host: (process.env.SMTP_HOST || 'smtp.gmail.com').replace(/^["']|["']$/g, ''),
-    port: parseInt((process.env.SMTP_PORT || '465').replace(/^["']|["']$/g, ''), 10),
-    secure: (process.env.SMTP_SECURE || (process.env.SMTP_PORT === '465' ? 'true' : 'false')) === 'true' || process.env.SMTP_PORT === '465',
-    user: (process.env.SMTP_USER || '').replace(/^["']|["']$/g, ''),
-    pass: (process.env.SMTP_PASS || '').replace(/^["']|["']$/g, ''),
-    from: (process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@annaia.com').replace(/^["']|["']$/g, ''),
+    host: (process.env.SMTP_HOST || 'smtp.gmail.com').replace(/"/g, ''),
+    port: parseInt((process.env.SMTP_PORT || '465').replace(/"/g, ''), 10),
+    secure: (process.env.SMTP_SECURE || 'true').replace(/"/g, '') === 'true' || process.env.SMTP_PORT === '465',
+    user: (process.env.SMTP_USER || '').replace(/"/g, ''),
+    pass: (process.env.SMTP_PASS || '').replace(/"/g, ''),
+    from: (process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@annaia.com').replace(/"/g, ''),
   },
 
   // OAuth

@@ -3,17 +3,23 @@ import { config } from '../config/config';
 import { logger } from '../utils/logger';
 
 const transporter = nodemailer.createTransport({
-  host: config.smtp.host,
-  port: config.smtp.port,
-  secure: config.smtp.secure,
+  service: 'gmail', // Use o atalho oficial para o Gmail
   auth: {
     user: config.smtp.user,
     pass: config.smtp.pass,
   },
-  // Aumentar o tempo limite para evitar erros de rede instável
-  connectionTimeout: 10000, // 10 segundos
+  connectionTimeout: 10000,
   greetingTimeout: 10000,
-  socketTimeout: 15000, // 15 segundos para resposta do socket
+  socketTimeout: 15000,
+});
+
+// Verifica a conexão na inicialização
+transporter.verify((error, success) => {
+  if (error) {
+    logger.error('❌ Erro de conexão SMTP (Gmail):', error);
+  } else {
+    logger.info('✅ Servidor de e-mail pronto para enviar mensagens');
+  }
 });
 
 export const sendVerificationEmail = async (email: string, token: string, name: string): Promise<void> => {
