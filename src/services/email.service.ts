@@ -5,28 +5,36 @@ import { logger } from '../utils/logger';
 const transporter = nodemailer.createTransport({
   host: config.smtp.host,
   port: config.smtp.port,
-  secure: config.smtp.secure, // false para 587
+  secure: config.smtp.secure,
   auth: {
     user: config.smtp.user,
     pass: config.smtp.pass,
   },
-  debug: true, // Habilitar logs de depuração detalhados
-  logger: true, // Logar tráfego SMTP bruto no console
-  connectionTimeout: 15000,
-  greetingTimeout: 15000,
-  socketTimeout: 20000,
+  tls: {
+    // Essencial para alguns servidores em nuvem que têm problemas de handshake
+    rejectUnauthorized: false,
+    minVersion: 'TLSv1.2'
+  },
+  debug: true,
+  logger: true,
+  connectionTimeout: 30000, // 30 segundos
+  greetingTimeout: 30000,
+  socketTimeout: 60000,
 });
 
 // Verifica a conexão na inicialização
-logger.info(`🔍 Testando conexão SMTP com ${config.smtp.host}:${config.smtp.port} (SSL/TLS: ${config.smtp.secure})...`);
+logger.info(`🔍 SMTP Config: Host=${config.smtp.host}, Port=${config.smtp.port}, Secure=${config.smtp.secure}`);
+logger.info(`🔍 SMTP Auth: User=${config.smtp.user.charAt(0)}...${config.smtp.user.slice(-1)} (Len:${config.smtp.user.length}), Pass=${config.smtp.pass.charAt(0)}...${config.smtp.pass.slice(-1)} (Len:${config.smtp.pass.length})`);
+
 transporter.verify((error, success) => {
   if (error) {
     logger.error('❌ Falha Crítica na Conexão SMTP:', {
       message: error.message,
       code: (error as any).code,
-      command: (error as any).command
+      command: (error as any).command,
+      errno: (error as any).errno,
+      syscall: (error as any).syscall
     });
-    logger.info('💡 Dica: Verifique se as variáveis SMTP_USER e SMTP_PASS estão corretas no Render.');
   } else {
     logger.info('✅ Conexão SMTP estabelecida com sucesso');
   }
