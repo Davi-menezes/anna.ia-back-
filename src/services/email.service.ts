@@ -3,22 +3,32 @@ import { config } from '../config/config';
 import { logger } from '../utils/logger';
 
 const transporter = nodemailer.createTransport({
-  service: 'gmail', // Use o atalho oficial para o Gmail
+  host: config.smtp.host,
+  port: config.smtp.port,
+  secure: config.smtp.secure, // false para 587
   auth: {
     user: config.smtp.user,
     pass: config.smtp.pass,
   },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 15000,
+  debug: true, // Habilitar logs de depuração detalhados
+  logger: true, // Logar tráfego SMTP bruto no console
+  connectionTimeout: 15000,
+  greetingTimeout: 15000,
+  socketTimeout: 20000,
 });
 
 // Verifica a conexão na inicialização
+logger.info(`🔍 Testando conexão SMTP com ${config.smtp.host}:${config.smtp.port} (SSL/TLS: ${config.smtp.secure})...`);
 transporter.verify((error, success) => {
   if (error) {
-    logger.error('❌ Erro de conexão SMTP (Gmail):', error);
+    logger.error('❌ Falha Crítica na Conexão SMTP:', {
+      message: error.message,
+      code: (error as any).code,
+      command: (error as any).command
+    });
+    logger.info('💡 Dica: Verifique se as variáveis SMTP_USER e SMTP_PASS estão corretas no Render.');
   } else {
-    logger.info('✅ Servidor de e-mail pronto para enviar mensagens');
+    logger.info('✅ Conexão SMTP estabelecida com sucesso');
   }
 });
 
