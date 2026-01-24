@@ -4,20 +4,19 @@ import { logger } from '../utils/logger';
 
 const transporter = nodemailer.createTransport({
   host: config.smtp.host,
-  port: config.smtp.port,
-  secure: config.smtp.secure,
+  port: 465, // Forçando porta 465 para SSL
+  secure: true, // Forçando secure verdaeiro para porta 465
   auth: {
     user: config.smtp.user,
     pass: config.smtp.pass,
   },
   tls: {
-    // Essencial para alguns servidores em nuvem que têm problemas de handshake
     rejectUnauthorized: false,
     minVersion: 'TLSv1.2'
   },
   debug: true,
   logger: true,
-  connectionTimeout: 30000, // 30 segundos
+  connectionTimeout: 30000,
   greetingTimeout: 30000,
   socketTimeout: 60000,
 });
