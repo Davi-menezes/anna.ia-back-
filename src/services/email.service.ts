@@ -4,8 +4,8 @@ import { logger } from '../utils/logger';
 
 const transporter = nodemailer.createTransport({
   host: config.smtp.host,
-  port: 465, // Use 465 for SSL (more stable in cloud environments like Render)
-  secure: true, // true for 465, false for other ports
+  port: config.smtp.port,
+  secure: config.smtp.secure,
   auth: {
     user: config.smtp.user,
     pass: config.smtp.pass,
@@ -13,10 +13,13 @@ const transporter = nodemailer.createTransport({
   // Aumentar o tempo limite para evitar erros de rede instável
   connectionTimeout: 10000, // 10 segundos
   greetingTimeout: 10000,
+  socketTimeout: 15000, // 15 segundos para resposta do socket
 });
 
 export const sendVerificationEmail = async (email: string, token: string, name: string): Promise<void> => {
   const verificationUrl = `${config.frontendUrl}/verify-email/${token}`;
+
+  logger.info(`Iniciando tentativa de e-mail: ${email} via ${config.smtp.host}:${config.smtp.port} (SSL: ${config.smtp.secure})`);
 
   // MOCK EMAIL IF NO CREDENTIALS
   if (!config.smtp.user || !config.smtp.pass) {
