@@ -33,7 +33,7 @@ export const config = {
     port: parseInt((process.env.SMTP_PORT || '587').replace(/"/g, ''), 10),
     secure: (process.env.SMTP_SECURE || 'false').replace(/"/g, '') === 'true',
     user: (process.env.SMTP_USER || '').replace(/"/g, ''),
-    pass: (process.env.SMTP_PASS || '').replace(/"/g, ''),
+    pass: (process.env.SMTP_PASS || '').replace(/\s+/g, ''),
     from: (process.env.EMAIL_FROM || process.env.SMTP_USER || 'no-reply@annaia.com').replace(/"/g, ''),
   },
 
