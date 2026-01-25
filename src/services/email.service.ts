@@ -1,59 +1,40 @@
-import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 import { config } from '../config/config';
 import { logger } from '../utils/logger';
 
-const transporter = nodemailer.createTransport({
-  service: 'gmail', // Usa configurações pré-definidas para o Gmail
-  auth: {
-    user: config.smtp.user,
-    pass: config.smtp.pass,
-  },
-  tls: {
-    rejectUnauthorized: false
-  },
-  debug: true,
-  logger: true,
-  connectionTimeout: 30000,
-  greetingTimeout: 30000,
-  socketTimeout: 60000,
-});
+const resend = new Resend(config.resend.apiKey);
 
-// Verifica a conexão na inicialização
-logger.info(`🔍 SMTP Config: Host=${config.smtp.host}, Port=${config.smtp.port}, Secure=${config.smtp.secure}`);
-logger.info(`🔍 SMTP Auth: User=${config.smtp.user.charAt(0)}...${config.smtp.user.slice(-1)} (Len:${config.smtp.user.length}), Pass=${config.smtp.pass.charAt(0)}...${config.smtp.pass.slice(-1)} (Len:${config.smtp.pass.length})`);
-
-transporter.verify((error, success) => {
-  if (error) {
-    logger.error('❌ Falha Crítica na Conexão SMTP:', {
-      message: error.message,
-      code: (error as any).code,
-      command: (error as any).command,
-      errno: (error as any).errno,
-      syscall: (error as any).syscall
-    });
-  } else {
-    logger.info('✅ Conexão SMTP estabelecida com sucesso');
+const sendEmail = async (to: string, subject: string, html: string) => {
+  if (!config.resend.apiKey) {
+    logger.warn('⚠️ Resend API key missing. Mocking email sending.');
+    logger.info(`📧 [MOCK EMAIL] To: ${to} | Subject: ${subject}`);
+    return;
   }
-});
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: config.resend.from,
+      to,
+      subject,
+      html,
+    });
+
+    if (error) {
+      logger.error(`❌ Resend API Error:`, error);
+      throw new Error(`Resend Error: ${error.message}`);
+    }
+
+    logger.info(`✅ Email sent successfully to ${to}. ID: ${data?.id}`);
+  } catch (error) {
+    logger.error(`❌ Failed to send email to ${to}:`, error);
+    throw error;
+  }
+};
 
 export const sendVerificationEmail = async (email: string, token: string, name: string): Promise<void> => {
   const verificationUrl = `${config.frontendUrl}/verify-email/${token}`;
 
-  logger.info(`Iniciando tentativa de e-mail: ${email} via ${config.smtp.host}:${config.smtp.port} (SSL: ${config.smtp.secure})`);
-
-  // MOCK EMAIL IF NO CREDENTIALS
-  if (!config.smtp.user || !config.smtp.pass) {
-    logger.warn('⚠️ SMTP credentials missing. Mocking email sending.');
-    logger.info(`📧 [MOCK EMAIL] To: ${email} | Subject: Verifique seu e-mail`);
-    logger.info(`🔗 Verification URL: ${verificationUrl}`);
-    return;
-  }
-
-  const mailOptions = {
-    from: `"Anna IA" <${config.smtp.from}>`,
-    to: email,
-    subject: 'Verifique seu e-mail - Anna IA',
-    html: `
+  const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Olá ${name}!</h2>
         <p>Obrigado por se cadastrar no Anna IA. Por favor, verifique seu endereço de e-mail clicando no botão abaixo:</p>
@@ -73,36 +54,15 @@ export const sendVerificationEmail = async (email: string, token: string, name: 
         
         <p>Atenciosamente,<br>Equipe Anna IA</p>
       </div>
-    `,
-  };
+    `;
 
-  try {
-    await transporter.sendMail(mailOptions);
-    logger.info(`E-mail de verificação enviado para ${email}`);
-  } catch (error) {
-    logger.error(`Erro ao enviar e-mail de verificação para ${email}:`, error);
-    // Don't crash the registration flow if email fails in dev, but maybe we should? 
-    // For now, let's allow it to fail if credentials WERE provided but failed.
-    throw new Error('Falha ao enviar e-mail de verificação');
-  }
+  await sendEmail(email, 'Verifique seu e-mail - Anna IA', html);
 };
 
 export const sendPasswordResetEmail = async (email: string, token: string, name: string): Promise<void> => {
   const resetUrl = `${config.frontendUrl}/reset-password?token=${token}`;
 
-  // MOCK EMAIL IF NO CREDENTIALS
-  if (!config.smtp.user || !config.smtp.pass) {
-    logger.warn('⚠️ SMTP credentials missing. Mocking password reset email.');
-    logger.info(`📧 [MOCK EMAIL] To: ${email} | Subject: Redefinição de Senha`);
-    logger.info(`🔗 Reset URL: ${resetUrl}`);
-    return;
-  }
-
-  const mailOptions = {
-    from: `"Anna IA" <${config.smtp.from}>`,
-    to: email,
-    subject: 'Redefinição de Senha - Anna IA',
-    html: `
+  const html = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         <h2>Olá ${name}!</h2>
         <p>Você solicitou a redefinição de senha. Clique no botão abaixo para criar uma nova senha:</p>
@@ -123,14 +83,7 @@ export const sendPasswordResetEmail = async (email: string, token: string, name:
         
         <p>Atenciosamente,<br>Equipe Anna IA</p>
       </div>
-    `,
-  };
+    `;
 
-  try {
-    await transporter.sendMail(mailOptions);
-    logger.info(`E-mail de redefinição de senha enviado para ${email}`);
-  } catch (error) {
-    logger.error(`Erro ao enviar e-mail de redefinição de senha para ${email}:`, error);
-    throw new Error('Falha ao enviar e-mail de redefinição de senha');
-  }
+  await sendEmail(email, 'Redefinição de Senha - Anna IA', html);
 };

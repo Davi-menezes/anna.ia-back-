@@ -59,9 +59,10 @@
     "passport-microsoft": "^2.1.0",
     "pg": "^8.16.3",
     "reflect-metadata": "^0.2.2",
+    "resend": "^6.8.0",
     "stripe": "^20.2.0",
-    "typescript": "^5.9.3",
     "typeorm": "^0.3.28",
+    "typescript": "^5.9.3",
     "uuid": "^13.0.0",
     "winston": "^3.19.0"
   },

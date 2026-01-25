@@ -58,6 +58,12 @@ export const config = {
     apiKey: process.env.GEMINI_API_KEY || '',
   },
 
+  // Resend Email
+  resend: {
+    apiKey: process.env.RESEND_API_KEY || '',
+    from: process.env.EMAIL_FROM || 'onboarding@resend.dev',
+  },
+
   // Stripe
   stripe: {
     secretKey: process.env.STRIPE_SECRET_KEY || '',
