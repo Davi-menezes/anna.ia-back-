@@ -74,7 +74,7 @@ export const generateResponse = async (req: Request, res: Response) => {
         try {
             // Call Gemini
             const model = genAI.getGenerativeModel({
-                model: 'gemini-2.0-flash-exp',
+                model: 'gemini-2.5-flash',
                 systemInstruction: `Atue como um Professor Profissional Altamente Qualificado e Especialista em Didática.
                 
             SUA PERSONALIDADE:

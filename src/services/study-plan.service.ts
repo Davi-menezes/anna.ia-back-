@@ -76,7 +76,7 @@ export class StudyPlanService {
             // Continue without chat context
         }
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash-exp' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
         const prompt = `
       Você é a Anna, uma mentora de estudos altamente qualificada, empática e motivadora. 
