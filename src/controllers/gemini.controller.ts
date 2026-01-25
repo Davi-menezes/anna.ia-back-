@@ -2,6 +2,7 @@ import { Request, Response } from 'express';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config/config';
 import { User } from '../entities/User';
+import { ChatMessage } from '../entities/ChatMessage';
 import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
 
@@ -14,7 +15,7 @@ const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
 
 export const generateResponse = async (req: Request, res: Response) => {
     try {
-        const { prompt } = req.body;
+        const { prompt, history } = req.body;
         const user = req.user;
 
         logger.info(`Gemini API Key present: ${!!config.gemini.apiKey}`);
@@ -73,10 +74,8 @@ export const generateResponse = async (req: Request, res: Response) => {
         try {
             // Call Gemini
             const model = genAI.getGenerativeModel({
-                model: 'gemini-2.5-flash'
-            });
-
-            const systemInstruction = `Atue como um Professor Profissional Altamente Qualificado e Especialista em Didática.
+                model: 'gemini-1.5-flash',
+                systemInstruction: `Atue como um Professor Profissional Altamente Qualificado e Especialista em Didática.
                 
             SUA PERSONALIDADE:
             - Você é paciente, encorajador e extremamente claro.
@@ -89,11 +88,28 @@ export const generateResponse = async (req: Request, res: Response) => {
             - Se o usuário perguntar sobre qualquer outro assunto (como fofocas, receitas culinárias, conselhos de relacionamento, notícias de famosos, política não-relacionada a estudos, jogos, etc.), você deve recusar educadamente.
 
             MENSAGEM DE RECUSA PADRÃO:
-            "Desculpe, mas como seu professor virtual, meu foco é exclusivamente ajudar você em seus estudos e matérias escolares. Vamos voltar para o aprendizado? O que você está estudando hoje?"`;
+            "Desculpe, mas como seu professor virtual, meu foco é exclusivamente ajudar você em seus estudos e matérias escolares. Vamos voltar para o aprendizado? O que você está estudando hoje?"`
+            });
 
-            const finalPrompt = `[INSTRUÇÕES DE SISTEMA]:\n${systemInstruction}\n\n[PERGUNTA DO ALUNO]:\n${prompt}`;
+            // Save user message
+            const chatRepository = AppDataSource.getRepository(ChatMessage);
+            const userMsg = new ChatMessage();
+            userMsg.user = existingUser;
+            userMsg.role = 'user';
+            userMsg.content = prompt;
+            await chatRepository.save(userMsg);
 
-            const result = await model.generateContent(finalPrompt);
+            // Format history for Gemini SDK
+            const formattedHistory = (history || []).map((msg: any) => ({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.content }]
+            }));
+
+            const chat = model.startChat({
+                history: formattedHistory,
+            });
+
+            const result = await chat.sendMessage(prompt);
             const response = await result.response;
             text = response.text();
 
@@ -102,13 +118,20 @@ export const generateResponse = async (req: Request, res: Response) => {
                 text = 'Desculpe, não consegui gerar uma resposta para isso. Poderia reformular sua pergunta?';
             }
 
+            // Save AI message
+            const aiMsg = new ChatMessage();
+            aiMsg.user = existingUser;
+            aiMsg.role = 'model';
+            aiMsg.content = text;
+            await chatRepository.save(aiMsg);
+
             res.status(200).json({
                 success: true,
                 content: text,
                 credits: existingUser.credits
             });
         } catch (respError: any) {
-            // REFUND CREDITS if it's a transient failure (like 429 or 500)
+            // REFUND CREDITS if it's a transient failure
             logger.error('Error during Gemini generation, refunding credits:', respError);
 
             existingUser.credits = currentCredits; // Restore original credits
@@ -122,7 +145,7 @@ export const generateResponse = async (req: Request, res: Response) => {
                 });
             }
 
-            throw respError; // Re-throw to main catch for 500 response
+            throw respError;
         }
     } catch (error: any) {
         logger.error('Error in Gemini controller:', error);

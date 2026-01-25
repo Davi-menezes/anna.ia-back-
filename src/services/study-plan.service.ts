@@ -5,6 +5,7 @@ import { StudyPlan } from '../entities/StudyPlan';
 import { StudyPlanSubject } from '../entities/StudyPlanSubject';
 import { WeeklySchedule } from '../entities/WeeklySchedule';
 import { User } from '../entities/User';
+import { ChatMessage } from '../entities/ChatMessage';
 import { logger } from '../utils/logger';
 
 const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
@@ -57,7 +58,19 @@ export class StudyPlanService {
 
         if (!plan) throw new Error('Plano de estudos não encontrado');
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-flash-latest' }, { apiVersion: 'v1beta' });
+        // Fetch user's chat history for context
+        const chatRepository = AppDataSource.getRepository(ChatMessage);
+        const recentChats = await chatRepository.find({
+            where: { user: { id: plan.user.id } },
+            order: { createdAt: 'DESC' },
+            take: 20
+        });
+
+        const chatContext = recentChats.length > 0
+            ? `\nHISTÓRICO DE DÚVIDAS RECENTES DO ALUNO:\n${recentChats.reverse().map(c => `[${c.role}]: ${c.content}`).join('\n')}\n* Considere essas dúvidas ao sugerir os tópicos e dicas de estudo.`
+            : '';
+
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' }, { apiVersion: 'v1beta' });
 
         const prompt = `
       Você é a Anna, uma mentora de estudos altamente qualificada, empática e motivadora. 
@@ -68,9 +81,10 @@ export class StudyPlanService {
       - Dias de estudo: ${plan.studyDays.join(', ')}.
       - Diagnóstico de Matérias:
         ${plan.subjects.map(s => `- ${s.subjectName}: Nível ${s.level}/5 (Prioridade atual: ${s.priority}/5)`).join('\n')}
+      ${chatContext}
       
       REQUISITOS DO PLANO (Seja o melhor professor particular do mundo):
-      1. Distribua as matérias priorizando aquelas com nível baixo (${plan.subjects.filter(s => s.level <= 2).map(s => s.subjectName).join(', ')}) ou prioridade alta.
+      1. Distribua as matérias priorizando aquelas com nível baixo (${plan.subjects.filter(s => s.level <= 2).map(s => s.subjectName).join(', ')}) ou prioridade alta e TOCANDO NOS PONTOS DE DÚVIDA RECENTES.
       2. Divida o tempo diário de ${plan.availableTimePerDay}min entre Teoria (30%), Prática/Exercícios (50%) e Revisão (20%).
       3. Forneça "Dicas de Mestre" (tips) práticas: como memorizar, que tipo de exercício buscar ou um "hack" da matéria.
       4. A "Mensagem da Mentora" deve ser curta, inspiradora e citar o vestibular alvo (${plan.targetVestibular}).

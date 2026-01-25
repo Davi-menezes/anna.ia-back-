@@ -1,5 +1,6 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, Index, BeforeInsert, OneToOne } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn, OneToMany, Index } from 'typeorm';
 import { StudyPlan } from './StudyPlan';
+import { ChatMessage } from './ChatMessage';
 import * as crypto from 'crypto';
 import * as bcrypt from 'bcryptjs';
 
@@ -18,7 +19,7 @@ export class User {
   @Index()
   email!: string;
 
-  @Column({ type: 'varchar', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true, select: false })
   password?: string;
 
   @Column({ type: 'varchar', length: 255, nullable: true, name: 'google_id' })
@@ -39,7 +40,7 @@ export class User {
   @Column({ type: 'varchar', length: 255, nullable: true })
   location?: string;
 
-  @Column({ type: 'varchar', length: 500, nullable: true, name: 'main_goal' })
+  @Column({ type: 'text', nullable: true, name: 'main_goal' })
   mainGoal?: string;
 
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 5.0, name: 'credits' })
@@ -67,8 +68,11 @@ export class User {
   @Column({ type: 'timestamp', nullable: true, name: 'password_reset_expires' })
   passwordResetExpires?: Date;
 
-  @OneToOne(() => StudyPlan, (studyPlan) => studyPlan.user)
-  studyPlan?: StudyPlan;
+  @OneToMany(() => StudyPlan, studyPlan => studyPlan.user)
+  studyPlans!: StudyPlan[]; // Changed from OneToOne to OneToMany
+
+  @OneToMany(() => ChatMessage, chatMessage => chatMessage.user)
+  chatMessages!: ChatMessage[]; // Added chatMessages relationship
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', name: 'created_at' })
   createdAt!: Date;
