@@ -210,7 +210,7 @@ export const deductCredits = async (req: Request, res: Response) => {
     if (existingUser.status === 'premium') {
       return res.status(200).json({
         success: true,
-        message: 'Unlimited credits for premium users',
+        message: 'Créditos disponíveis para usuários premium',
         credits: existingUser.credits
       });
     }

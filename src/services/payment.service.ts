@@ -3,6 +3,7 @@ import { User } from '../entities/User';
 import Stripe from 'stripe';
 import { MercadoPagoConfig, Payment, MerchantOrder, PreApproval } from 'mercadopago';
 import { config } from '../config/config';
+import { UserStatus } from '../entities/User';
 
 // Inicializa o cliente do Mercado Pago
 const mpClient = new MercadoPagoConfig({
@@ -12,18 +13,18 @@ const mpClient = new MercadoPagoConfig({
 // Função auxiliar para calcular créditos com base no valor pago
 function calcularCreditos(valor: number): number {
   // Lógica de conversão de valor para créditos baseada em planos comuns
-  // 4,99 = 10 créditos
-  // 19,99 = 50 créditos
-  // 34,99 = 100 créditos
-  // 49,90 = Ilimitado (999)
+  // 7,90 = 10 créditos
+  // 19,90 = 50 créditos
+  // 39,90 = 150 créditos
+  // 59,90 = Plano Premium (500)
 
-  if (valor >= 49.90) {
-    return 999; // Plano avançado / Ilimitado
-  } else if (valor >= 34.99) {
-    return 100; // Plano premium
-  } else if (valor >= 19.99) {
+  if (valor >= 59.90) {
+    return 500; // Plano Premium
+  } else if (valor >= 39.90) {
+    return 150; // Plano avançado
+  } else if (valor >= 19.90) {
     return 50; // Plano intermediário
-  } else if (valor >= 4.99) {
+  } else if (valor >= 7.90) {
     return 10; // Plano básico
   } else {
     // Para valores menores ou personalizados, 1 crédito por real
@@ -102,16 +103,17 @@ export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
 
       if (preApproval.status === 'authorized') {
         const previousCredits = user.credits;
-        user.credits = 999; // Unlimited Plan
+        user.status = UserStatus.PREMIUM;
+        user.credits = 500;
         await userRepository.save(user);
 
-        logger.info('User upgraded to UNLIMITED via Subscription', {
+        logger.info('User upgraded to PREMIUM via Subscription', {
           userId,
           subscriptionId: id,
           previousCredits
         });
 
-        return { success: true, message: 'Assinatura ilimitada ativada com sucesso.' };
+        return { success: true, message: 'Assinatura premium ativada com sucesso.' };
       }
 
       return { success: true, message: `Status da assinatura: ${preApproval.status}` };
