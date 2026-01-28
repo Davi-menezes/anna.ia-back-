@@ -251,10 +251,10 @@ export const serveProfilePicture = async (req: Request, res: Response) => {
     const userId = req.params.userId as string;
 
     if (!userId) {
-      return res.status(400).json({
-        success: false,
-        message: 'User ID is required',
-      });
+      // Return default avatar instead of error
+      return res.sendFile(
+        path.join(__dirname, '../../public/default-avatar.png')
+      );
     }
 
     const userRepository = AppDataSource.getRepository(User);
@@ -264,10 +264,17 @@ export const serveProfilePicture = async (req: Request, res: Response) => {
     });
 
     if (!user || !user.profilePicture) {
-      return res.status(404).json({
-        success: false,
-        message: 'Profile picture not found for this user',
-      });
+      // Return default avatar instead of 404
+      logger.info(`User ${userId} has no profile picture, serving default avatar`);
+      return res.sendFile(
+        path.join(__dirname, '../../public/default-avatar.png')
+      );
+    }
+
+    // If it's a Google photo URL, redirect to it
+    if (user.profilePicture.startsWith('http://') || user.profilePicture.startsWith('https://')) {
+      logger.info(`Redirecting to Google photo for user ${userId}`);
+      return res.redirect(user.profilePicture);
     }
 
     // Try multiple path resolutions to be robust
@@ -293,19 +300,19 @@ export const serveProfilePicture = async (req: Request, res: Response) => {
     }
 
     if (!fileSent) {
-      logger.error(`Profile picture file not found at any expected location for user ${userId}. Path from DB: ${user.profilePicture}`);
-      return res.status(404).json({
-        success: false,
-        message: 'Profile picture file not found on server',
-      });
+      // If file not found, serve default avatar instead of error
+      logger.warn(`Profile picture file not found at any expected location for user ${userId}. Path from DB: ${user.profilePicture}. Serving default avatar.`);
+      return res.sendFile(
+        path.join(__dirname, '../../public/default-avatar.png')
+      );
     }
 
   } catch (error) {
     logger.error('Error serving profile picture:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Error serving profile picture',
-      error: process.env.NODE_ENV === 'development' ? error : undefined,
-    });
+    // On error, also serve default avatar
+    return res.sendFile(
+      path.join(__dirname, '../../public/default-avatar.png')
+    );
   }
 };
+

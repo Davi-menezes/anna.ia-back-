@@ -30,13 +30,15 @@ passport.use(
                 let user = await userRepository.findOneBy({ email });
 
                 if (user) {
-                    // Se o usuário existir, atualiza a foto se vier do Google
-                    if (profile.photos?.[0]?.value && user.profilePicture !== profile.photos[0].value) {
-                        user.profilePicture = profile.photos[0].value;
+                    // Se o usuário existir, SEMPRE atualiza a foto do Google
+                    const googlePhoto = profile.photos?.[0]?.value;
+                    if (googlePhoto) {
+                        user.profilePicture = googlePhoto;
+                        user.googleId = profile.id; // Ensure googleId is also set
                         await userRepository.save(user);
+                        logger.info(`Updated Google photo for user ${email}: ${googlePhoto}`);
                     }
 
-                    // Se o usuário existir, apenas retorna ele
                     // Converte para um objeto simples para evitar problemas de tipo
                     const userObject = {
                         id: user.id,
@@ -55,12 +57,12 @@ passport.use(
                     email: email,
                     status: UserStatus.VERIFIED, // E-mail do Google já é verificado
                     googleId: profile.id,
-                    profilePicture: profile.photos?.[0]?.value
+                    profilePicture: profile.photos?.[0]?.value || undefined
                 });
 
                 await userRepository.save(newUser);
 
-                logger.info(`Novo usuário criado via Google: ${email}`);
+                logger.info(`Novo usuário criado via Google: ${email} com foto: ${newUser.profilePicture}`);
 
                 // Retorna um objeto simples com os dados do usuário
                 const userObject = {
@@ -80,3 +82,4 @@ passport.use(
         }
     )
 );
+
