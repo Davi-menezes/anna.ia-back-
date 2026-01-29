@@ -80,30 +80,14 @@ export const generateResponse = async (req: Request, res: Response) => {
         try {
             // Call Gemini
             const model = genAI.getGenerativeModel({
-                model: 'gemini-1.5-flash',
-                systemInstruction: `Atue como um Professor Profissional Altamente Qualificado e Especialista em Didática.
-                
-            SUA PERSONALIDADE:
-            - Você é paciente, encorajador e extremamente claro.
-            - Explique tudo de forma DETALHADA, mas usando linguagem SIMPLES e INTUITIVA.
-            - Use analogias do dia a dia para facilitar o entendimento.
-            - O objetivo é que QUALQUER pessoa, independente do nível de conhecimento, consiga entender a explicação.
-
-            REGRAS ESTRITAS DE CONTEÚDO:
-            - Você ACEITA APENAS perguntas relacionadas a MATÉRIAS ESCOLARES (Português, Matemática, História, Geografia, Biologia, Química, Física, Filosofia, Sociologia, Inglês, Literatura, Redação) e preparação para VESTIBULARES/ENEM.
-            - Se o usuário perguntar sobre qualquer outro assunto (como fofocas, receitas culinárias, conselhos de relacionamento, notícias de famosos, política não-relacionada a estudos, jogos, etc.), você deve recusar educadamente.
-
-            MENSAGEM DE RECUSA PADRÃO:
-            "Desculpe, mas como seu professor virtual, meu foco é exclusivamente ajudar você em seus estudos e matérias escolares. Vamos voltar para o aprendizado? O que você está estudando hoje?"`
+                model: 'gemini-pro',
+                safetySettings: [
+                    {
+                        category: 'HARM_CATEGORY_UNSPECIFIED',
+                        threshold: 'BLOCK_NONE',
+                    },
+                ],
             });
-
-            // Save user message
-            const chatRepository = AppDataSource.getRepository(ChatMessage);
-            const userMsg = new ChatMessage();
-            userMsg.user = existingUser;
-            userMsg.role = 'user';
-            userMsg.content = prompt;
-            await chatRepository.save(userMsg);
 
             // Format history for Gemini SDK
             const formattedHistory = (history || []).map((msg: any) => ({
@@ -111,9 +95,30 @@ export const generateResponse = async (req: Request, res: Response) => {
                 parts: [{ text: msg.content }]
             }));
 
+            const systemPrompt = `Atue como um Professor Profissional Altamente Qualificado e Especialista em Didática.
+                
+SUA PERSONALIDADE:
+- Você é paciente, encorajador e extremamente claro.
+- Explique tudo de forma DETALHADA, mas usando linguagem SIMPLES e INTUITIVA.
+- Use analogias do dia a dia para facilitar o entendimento.
+- O objetivo é que QUALQUER pessoa, independente do nível de conhecimento, consiga entender a explicação.
+
+REGRAS ESTRITAS DE CONTEÚDO:
+- Você ACEITA APENAS perguntas relacionadas a MATÉRIAS ESCOLARES (Português, Matemática, História, Geografia, Biologia, Química, Física, Filosofia, Sociologia, Inglês, Literatura, Redação) e preparação para VESTIBULARES/ENEM.
+- Se o usuário perguntar sobre qualquer outro assunto (como fofocas, receitas culinárias, conselhos de relacionamento, notícias de famosos, política não-relacionada a estudos, jogos, etc.), você deve recusar educadamente.
+
+MENSAGEM DE RECUSA PADRÃO:
+"Desculpe, mas como seu professor virtual, meu foco é exclusivamente ajudar você em seus estudos e matérias escolares. Vamos voltar para o aprendizado? O que você está estudando hoje?"`;
+
             const chat = model.startChat({
                 history: formattedHistory,
             });
+
+            // Add system prompt to the beginning if history is empty
+            if (!formattedHistory || formattedHistory.length === 0) {
+                const systemMsg = await chat.sendMessage(systemPrompt);
+                logger.info('System prompt sent to Gemini');
+            }
 
             const result = await chat.sendMessage(prompt);
             const response = await result.response;
@@ -124,12 +129,7 @@ export const generateResponse = async (req: Request, res: Response) => {
                 text = 'Desculpe, não consegui gerar uma resposta para isso. Poderia reformular sua pergunta?';
             }
 
-            // Save AI message
-            const aiMsg = new ChatMessage();
-            aiMsg.user = existingUser;
-            aiMsg.role = 'model';
-            aiMsg.content = text;
-            await chatRepository.save(aiMsg);
+            logger.info(`Chat response generated successfully for user ${user.id}`);
 
             res.status(200).json({
                 success: true,

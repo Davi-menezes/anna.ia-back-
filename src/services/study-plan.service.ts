@@ -76,7 +76,7 @@ export class StudyPlanService {
             // Continue without chat context
         }
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
 
         const prompt = `
       Você é a Anna, uma mentora de estudos altamente qualificada, empática e motivadora. 
@@ -172,7 +172,7 @@ export class StudyPlanService {
     }
 
     async generateSimulado(subject: string) {
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-pro' });
         const today = new Date();
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
