@@ -51,6 +51,9 @@ export class StudyPlanService {
     }
 
     async generateWeeklyPlan(studyPlanId: string) {
+        if (!config.gemini.apiKey) {
+            throw new Error('Serviço de IA indisponível no momento. Tente novamente mais tarde.');
+        }
         const plan = await this.studyPlanRepository.findOne({
             where: { id: studyPlanId },
             relations: ['subjects', 'user']
@@ -157,6 +160,9 @@ export class StudyPlanService {
     }
 
     async generateSimulado(subject: string) {
+        if (!config.gemini.apiKey) {
+            throw new Error('Serviço de IA indisponível no momento. Tente novamente mais tarde.');
+        }
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
         const today = new Date();
         const yyyy = today.getFullYear();

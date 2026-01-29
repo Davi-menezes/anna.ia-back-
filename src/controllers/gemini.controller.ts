@@ -21,6 +21,14 @@ export const generateResponse = async (req: Request, res: Response) => {
         logger.info(`Gemini API Key present: ${!!config.gemini.apiKey}`);
         logger.info(`Gemini user from req: ${user?.id}`);
 
+        if (!config.gemini.apiKey) {
+            logger.error('Gemini API Key is missing (GEMINI_API_KEY).');
+            return res.status(503).json({
+                success: false,
+                message: 'Serviço de IA indisponível no momento. Tente novamente mais tarde.'
+            });
+        }
+
         if (!user) {
             logger.warn('generateResponse: No user in request');
             return res.status(401).json({
