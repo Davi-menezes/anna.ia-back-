@@ -1,4 +1,3 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config/config';
 import AppDataSource from '../config/data-source';
 import { StudyPlan } from '../entities/StudyPlan';
@@ -8,9 +7,34 @@ import { User } from '../entities/User';
 import { ChatMessage } from '../entities/ChatMessage';
 import { logger } from '../utils/logger';
 
-const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
-const GEMINI_MODEL = 'gemini-pro';
+async function generateWithGeminiV1(params: {
+    apiKey: string;
+    model: string;
+    prompt: string;
+}): Promise<string> {
+    const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(params.model)}:generateContent`;
+
+    logger.info(`Gemini mode=rest_v1 model=${params.model} url=${url}`);
+
+    const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ role: 'user', parts: [{ text: params.prompt }] }]
+        })
+    });
+
+    const raw = await res.text();
+    if (!res.ok) {
+        throw new Error(`Gemini v1 error (${res.status}): ${raw}`);
+    }
+
+    const data = JSON.parse(raw);
+    const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).filter(Boolean).join('') || '';
+    return text;
+}
 
 export class StudyPlanService {
     private studyPlanRepository = AppDataSource.getRepository(StudyPlan);
@@ -66,8 +90,6 @@ export class StudyPlanService {
         // Chat history is no longer used here to avoid dependency on a non-existent table
         const chatContext = '';
 
-        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
-
         const prompt = `
       Você é a Anna, uma mentora de estudos altamente qualificada, empática e motivadora. 
       Seu objetivo é transformar a rotina do aluno em uma jornada de aprovação épica para o ${plan.targetVestibular}.
@@ -102,9 +124,11 @@ export class StudyPlanService {
     `;
 
         try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
+            const text = await generateWithGeminiV1({
+                apiKey: config.gemini.apiKey,
+                model: GEMINI_MODEL,
+                prompt
+            });
 
             // Extract JSON from response if needed (sometimes LLMs wrap in markdown)
             const jsonStr = text.match(/\{[\s\S]*\}/)?.[0] || text;
@@ -165,7 +189,6 @@ export class StudyPlanService {
         if (!config.gemini.apiKey) {
             throw new Error('Serviço de IA indisponível no momento. Tente novamente mais tarde.');
         }
-        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
         const today = new Date();
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
@@ -205,9 +228,11 @@ export class StudyPlanService {
         `;
 
         try {
-            const result = await model.generateContent(prompt);
-            const response = await result.response;
-            const text = response.text();
+            const text = await generateWithGeminiV1({
+                apiKey: config.gemini.apiKey,
+                model: GEMINI_MODEL,
+                prompt
+            });
 
             const jsonStr = text.match(/\[[\s\S]*\]/)?.[0] || text;
             const questions = JSON.parse(jsonStr);

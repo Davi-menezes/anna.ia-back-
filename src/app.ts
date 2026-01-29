@@ -79,6 +79,17 @@ export function createApp(): Application {
     res.status(200).json({ status: 'ok' });
   });
 
+  app.get('/api/v1/diagnostics/gemini', (req, res) => {
+    res.status(200).json({
+      success: true,
+      gemini: {
+        mode: 'rest_v1',
+        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+        apiKeyPresent: !!config.gemini.apiKey,
+      },
+    });
+  });
+
   // Google OAuth Fail-safe Redirect (handles old URIs without /v1)
   app.get('/api/auth/google/callback', (req, res) => {
     logger.info('Redirecting old OAuth callback to v1');

@@ -1,19 +1,46 @@
 import { Request, Response } from 'express';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../config/config';
 import { User } from '../entities/User';
 import { ChatMessage } from '../entities/ChatMessage';
 import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
 
-// Initialize Gemini
-// Specify apiVersion: 'v1' to ensure gemini-1.5-flash is found
-const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
-// Note: Depending on the SDK version, we might need a different way to specify apiVersion
-// but usually 'gemini-1.5-flash' works in v1.
-// Note: If 404 persists, we might need to specify version in constructor or check model availability
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
-const GEMINI_MODEL = 'gemini-pro';
+async function generateWithGeminiV1(params: {
+    apiKey: string;
+    model: string;
+    systemInstruction?: string;
+    history?: Array<{ role: 'user' | 'model'; content: string }>;
+    prompt: string;
+}): Promise<string> {
+    const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(params.model)}:generateContent`;
+
+    const contents = [
+        ...(params.history || []).map(m => ({ role: m.role, parts: [{ text: m.content }] })),
+        { role: 'user', parts: [{ text: params.prompt }] }
+    ];
+
+    logger.info(`Gemini mode=rest_v1 model=${params.model} url=${url}`);
+
+    const res = await fetch(`${url}?key=${encodeURIComponent(params.apiKey)}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents,
+            ...(params.systemInstruction ? { systemInstruction: { parts: [{ text: params.systemInstruction }] } } : {})
+        })
+    });
+
+    const raw = await res.text();
+    if (!res.ok) {
+        throw new Error(`Gemini v1 error (${res.status}): ${raw}`);
+    }
+
+    const data = JSON.parse(raw);
+    const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).filter(Boolean).join('') || '';
+    return text;
+}
 
 export const generateResponse = async (req: Request, res: Response) => {
     try {
@@ -103,29 +130,21 @@ REGRAS ESTRITAS DE CONTEÚDO:
 MENSAGEM DE RECUSA PADRÃO:
 "Desculpe, mas como seu professor virtual, meu foco é exclusivamente ajudar você em seus estudos e matérias escolares. Vamos voltar para o aprendizado? O que você está estudando hoje?"`;
 
-            // Call Gemini with systemInstruction
-            const model = genAI.getGenerativeModel({
-                model: GEMINI_MODEL,
-                systemInstruction: systemPrompt,
-            });
-
-            // Format history for Gemini SDK
-            const formattedHistoryRaw = (history || []).map((msg: any) => ({
+            const historyRaw = (history || []).map((msg: any) => ({
                 role: msg.role === 'user' ? 'user' : 'model',
-                parts: [{ text: msg.content }]
+                content: msg.content
             }));
 
-            // Gemini SDK requires the first content to be role 'user'
-            const firstUserIndex = formattedHistoryRaw.findIndex((m: any) => m.role === 'user');
-            const formattedHistory = firstUserIndex >= 0 ? formattedHistoryRaw.slice(firstUserIndex) : [];
+            const firstUserIndex = historyRaw.findIndex((m: { role: 'user' | 'model'; content: string }) => m.role === 'user');
+            const safeHistory = firstUserIndex >= 0 ? historyRaw.slice(firstUserIndex) : [];
 
-            const chat = model.startChat({
-                history: formattedHistory,
+            text = await generateWithGeminiV1({
+                apiKey: config.gemini.apiKey,
+                model: GEMINI_MODEL,
+                systemInstruction: systemPrompt,
+                history: safeHistory,
+                prompt
             });
-
-            const result = await chat.sendMessage(prompt);
-            const response = await result.response;
-            text = response.text();
 
             if (!text) {
                 logger.warn('Gemini returned empty text or was blocked');
