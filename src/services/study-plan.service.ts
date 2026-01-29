@@ -18,7 +18,7 @@ async function generateWithGeminiV1(params: {
 
     logger.info(`Gemini mode=rest_v1 model=${params.model} url=${url}`);
 
-    const res = await fetch(url, {
+    const res = await fetch(`${url}?key=${encodeURIComponent(params.apiKey)}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

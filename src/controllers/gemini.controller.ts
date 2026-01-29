@@ -10,7 +10,6 @@ const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 async function generateWithGeminiV1(params: {
     apiKey: string;
     model: string;
-    systemInstruction?: string;
     history?: Array<{ role: 'user' | 'model'; content: string }>;
     prompt: string;
 }): Promise<string> {
@@ -28,7 +27,6 @@ async function generateWithGeminiV1(params: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             contents,
-            ...(params.systemInstruction ? { systemInstruction: { parts: [{ text: params.systemInstruction }] } } : {})
         })
     });
 
@@ -141,9 +139,8 @@ MENSAGEM DE RECUSA PADRÃO:
             text = await generateWithGeminiV1({
                 apiKey: config.gemini.apiKey,
                 model: GEMINI_MODEL,
-                systemInstruction: systemPrompt,
                 history: safeHistory,
-                prompt
+                prompt: `${systemPrompt}\n\nPergunta do aluno: ${prompt}`
             });
 
             if (!text) {
