@@ -76,7 +76,7 @@ export class StudyPlanService {
             // Continue without chat context
         }
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 
         const prompt = `
       Você é a Anna, uma mentora de estudos altamente qualificada, empática e motivadora. 
@@ -169,5 +169,72 @@ export class StudyPlanService {
         }
 
         return plan;
+    }
+
+    async generateSimulado(subject: string) {
+        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const today = new Date();
+        const yyyy = today.getFullYear();
+        const mm = String(today.getMonth() + 1).padStart(2, '0');
+        const dd = String(today.getDate()).padStart(2, '0');
+        const dateSeed = `${yyyy}-${mm}-${dd}`;
+
+        const prompt = `
+            Você é um especialista em criar provas e simulados.
+            Gere um simulado de 30 questões de múltipla escolha sobre o tema "${subject}".
+
+            Regras de VARIAÇÃO DIÁRIA:
+            - Data do dia: ${dateSeed}. Gere questões inéditas para esta data.
+            - Use uma semente determinística: "seed:${subject}:${dateSeed}" para garantir rotatividade diária.
+
+            REGRAS OBRIGATÓRIAS:
+            1.  As questões devem cobrir uma variedade de tópicos dentro de "${subject}".
+            2.  As questões devem ter diferentes níveis de dificuldade (fácil, médio, difícil).
+            3.  Cada questão deve ter 4 opções de resposta.
+            4.  A resposta correta deve ser claramente indicada.
+            5.  Inclua uma breve explicação para a resposta correta.
+
+            FORMATO DE RESPOSTA (JSON APENAS, um array de 30 objetos):
+            [
+              {
+                "subject": "${subject}",
+                "question": "Texto da pergunta aqui...",
+                "options": [
+                  "Opção A",
+                  "Opção B",
+                  "Opção C",
+                  "Opção D"
+                ],
+                "correctAnswerIndex": 0,
+                "explanation": "Explicação concisa do porquê esta é a resposta correta."
+              }
+            ]
+        `;
+
+        try {
+            const result = await model.generateContent(prompt);
+            const response = await result.response;
+            const text = response.text();
+
+            const jsonStr = text.match(/\[[\s\S]*\]/)?.[0] || text;
+            const questions = JSON.parse(jsonStr);
+
+            // Validate 30 questions
+            if (!Array.isArray(questions) || questions.length !== 30) {
+                throw new Error('Formato inválido: o simulado deve conter exatamente 30 questões.');
+            }
+
+            // Add IDs to the questions
+            const questionsWithIds = questions.map((q: any, index: number) => ({
+                ...q,
+                id: index,
+            }));
+
+            return questionsWithIds;
+        } catch (error) {
+            logger.error('Erro ao gerar simulado com Gemini:', error);
+
+            throw new Error('Não conseguimos gerar seu simulado no momento. Tente novamente.');
+        }
     }
 }

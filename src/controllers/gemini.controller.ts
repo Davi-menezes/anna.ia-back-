@@ -52,29 +52,26 @@ export const generateResponse = async (req: Request, res: Response) => {
 
         logger.info(`Credits check for user ${user.id}: current=${currentCredits}, cost=${creditCost}`);
 
-        if (existingUser.status === 'premium') {
-            logger.info(`User ${user.id} is PREMIUM, skipping credit deduction`);
-        } else {
-            if (currentCredits < creditCost) {
-                logger.warn(`User ${user.id} out of credits: ${currentCredits} < ${creditCost}`);
-                return res.status(403).json({
-                    success: false,
-                    message: 'Créditos insuficientes para usar o chat',
-                    code: 'OUT_OF_CREDITS'
-                });
-            }
-
-            // Deduct credits before calling AI
-            const newCredits = currentCredits - creditCost;
-            existingUser.credits = Math.round(newCredits * 100) / 100;
-            await userRepository.save(existingUser);
+        // All users, including premium, consume credits now
+        if (currentCredits < creditCost) {
+            logger.warn(`User ${user.id} out of credits: ${currentCredits} < ${creditCost}`);
+            return res.status(403).json({
+                success: false,
+                message: 'Créditos insuficientes para usar o chat',
+                code: 'OUT_OF_CREDITS'
+            });
         }
+
+        // Deduct credits before calling AI
+        const newCredits = currentCredits - creditCost;
+        existingUser.credits = Math.round(newCredits * 100) / 100;
+        await userRepository.save(existingUser);
 
         let text = '';
         try {
             // Call Gemini
             const model = genAI.getGenerativeModel({
-                model: 'gemini-2.5-flash',
+                model: 'gemini-1.5-flash',
                 systemInstruction: `Atue como um Professor Profissional Altamente Qualificado e Especialista em Didática.
                 
             SUA PERSONALIDADE:
