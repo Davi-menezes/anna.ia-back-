@@ -81,12 +81,6 @@ export const generateResponse = async (req: Request, res: Response) => {
             // Call Gemini
             const model = genAI.getGenerativeModel({
                 model: 'gemini-pro',
-                safetySettings: [
-                    {
-                        category: 'HARM_CATEGORY_UNSPECIFIED',
-                        threshold: 'BLOCK_NONE',
-                    },
-                ],
             });
 
             // Format history for Gemini SDK
