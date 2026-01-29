@@ -13,6 +13,8 @@ const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
 // but usually 'gemini-1.5-flash' works in v1.
 // Note: If 404 persists, we might need to specify version in constructor or check model availability
 
+const GEMINI_MODEL = 'gemini-pro';
+
 export const generateResponse = async (req: Request, res: Response) => {
     try {
         const { prompt, history } = req.body;
@@ -103,15 +105,19 @@ MENSAGEM DE RECUSA PADRÃO:
 
             // Call Gemini with systemInstruction
             const model = genAI.getGenerativeModel({
-                model: 'gemini-1.5-flash',
+                model: GEMINI_MODEL,
                 systemInstruction: systemPrompt,
             });
 
             // Format history for Gemini SDK
-            const formattedHistory = (history || []).map((msg: any) => ({
+            const formattedHistoryRaw = (history || []).map((msg: any) => ({
                 role: msg.role === 'user' ? 'user' : 'model',
                 parts: [{ text: msg.content }]
             }));
+
+            // Gemini SDK requires the first content to be role 'user'
+            const firstUserIndex = formattedHistoryRaw.findIndex((m: any) => m.role === 'user');
+            const formattedHistory = firstUserIndex >= 0 ? formattedHistoryRaw.slice(firstUserIndex) : [];
 
             const chat = model.startChat({
                 history: formattedHistory,

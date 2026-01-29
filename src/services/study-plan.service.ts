@@ -10,6 +10,8 @@ import { logger } from '../utils/logger';
 
 const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
 
+const GEMINI_MODEL = 'gemini-pro';
+
 export class StudyPlanService {
     private studyPlanRepository = AppDataSource.getRepository(StudyPlan);
     private subjectRepository = AppDataSource.getRepository(StudyPlanSubject);
@@ -64,7 +66,7 @@ export class StudyPlanService {
         // Chat history is no longer used here to avoid dependency on a non-existent table
         const chatContext = '';
 
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
 
         const prompt = `
       Você é a Anna, uma mentora de estudos altamente qualificada, empática e motivadora. 
@@ -163,7 +165,7 @@ export class StudyPlanService {
         if (!config.gemini.apiKey) {
             throw new Error('Serviço de IA indisponível no momento. Tente novamente mais tarde.');
         }
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+        const model = genAI.getGenerativeModel({ model: GEMINI_MODEL });
         const today = new Date();
         const yyyy = today.getFullYear();
         const mm = String(today.getMonth() + 1).padStart(2, '0');
