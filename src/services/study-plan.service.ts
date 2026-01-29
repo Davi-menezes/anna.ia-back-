@@ -58,23 +58,8 @@ export class StudyPlanService {
 
         if (!plan) throw new Error('Plano de estudos não encontrado');
 
-        // Fetch user's chat history for context (optional - won't fail if table doesn't exist)
-        let chatContext = '';
-        try {
-            const chatRepository = AppDataSource.getRepository(ChatMessage);
-            const recentChats = await chatRepository.find({
-                where: { user: { id: plan.user.id } },
-                order: { createdAt: 'DESC' },
-                take: 20
-            });
-
-            chatContext = recentChats.length > 0
-                ? `\nHISTÓRICO DE DÚVIDAS RECENTES DO ALUNO:\n${recentChats.reverse().map(c => `[${c.role}]: ${c.content}`).join('\n')}\n* Considere essas dúvidas ao sugerir os tópicos e dicas de estudo.`
-                : '';
-        } catch (error) {
-            logger.warn('Could not fetch chat history (table may not exist yet):', error);
-            // Continue without chat context
-        }
+        // Chat history is no longer used here to avoid dependency on a non-existent table
+        const chatContext = '';
 
         const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
 

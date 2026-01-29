@@ -78,17 +78,6 @@ export const generateResponse = async (req: Request, res: Response) => {
 
         let text = '';
         try {
-            // Call Gemini
-            const model = genAI.getGenerativeModel({
-                model: 'gemini-1.5-flash',
-            });
-
-            // Format history for Gemini SDK
-            const formattedHistory = (history || []).map((msg: any) => ({
-                role: msg.role === 'user' ? 'user' : 'model',
-                parts: [{ text: msg.content }]
-            }));
-
             const systemPrompt = `Atue como um Professor Profissional Altamente Qualificado e Especialista em Didática.
                 
 SUA PERSONALIDADE:
@@ -104,17 +93,23 @@ REGRAS ESTRITAS DE CONTEÚDO:
 MENSAGEM DE RECUSA PADRÃO:
 "Desculpe, mas como seu professor virtual, meu foco é exclusivamente ajudar você em seus estudos e matérias escolares. Vamos voltar para o aprendizado? O que você está estudando hoje?"`;
 
-            // Prepend system prompt to the first user message if no history
-            let promptWithSystem = prompt;
-            if (!formattedHistory || formattedHistory.length === 0) {
-                promptWithSystem = `${systemPrompt}\n\nPergunta do aluno: ${prompt}`;
-            }
+            // Call Gemini with systemInstruction
+            const model = genAI.getGenerativeModel({
+                model: 'gemini-1.5-flash',
+                systemInstruction: systemPrompt,
+            });
+
+            // Format history for Gemini SDK
+            const formattedHistory = (history || []).map((msg: any) => ({
+                role: msg.role === 'user' ? 'user' : 'model',
+                parts: [{ text: msg.content }]
+            }));
 
             const chat = model.startChat({
                 history: formattedHistory,
             });
 
-            const result = await chat.sendMessage(promptWithSystem);
+            const result = await chat.sendMessage(prompt);
             const response = await result.response;
             text = response.text();
 
