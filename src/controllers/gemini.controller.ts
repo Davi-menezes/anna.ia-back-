@@ -19,11 +19,10 @@ export const generateResponse = async (req: Request, res: Response) => {
         const user = req.user;
 
         logger.info(`Gemini API Key present: ${!!config.gemini.apiKey}`);
-
-        logger.info(`Gemini request body: ${JSON.stringify(req.body)}`);
-        logger.info(`Gemini user from req: ${JSON.stringify(user)}`);
+        logger.info(`Gemini user from req: ${user?.id}`);
 
         if (!user) {
+            logger.warn('generateResponse: No user in request');
             return res.status(401).json({
                 success: false,
                 message: 'Não autorizado',
@@ -38,9 +37,19 @@ export const generateResponse = async (req: Request, res: Response) => {
         }
 
         const userRepository = AppDataSource.getRepository(User);
-        const existingUser = await userRepository.findOneBy({ id: user.id });
+        let existingUser: any;
+        try {
+            existingUser = await userRepository.findOneBy({ id: user.id });
+        } catch (dbErr) {
+            logger.error('Error fetching user from DB in chat:', dbErr);
+            return res.status(500).json({
+                success: false,
+                message: 'Erro ao buscar usuário no banco de dados',
+            });
+        }
 
         if (!existingUser) {
+            logger.warn(`generateResponse: User ${user.id} not found in DB`);
             return res.status(404).json({
                 success: false,
                 message: 'Usuário não encontrado',

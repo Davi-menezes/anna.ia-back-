@@ -1,6 +1,8 @@
 import { Request, Response } from 'express';
 import { StudyPlanService } from '../services/study-plan.service';
 import { logger } from '../utils/logger';
+import AppDataSource from '../config/data-source';
+import { User } from '../entities/User';
 
 const studyPlanService = new StudyPlanService();
 
@@ -54,39 +56,66 @@ export const generateSimulado = async (req: Request, res: Response) => {
         const user = (req as any).user;
         const { subject } = req.params;
 
-        // Credits logic for simulados: premium users free, others cost 1.0 credit
-        const userRepository = (await import('../config/data-source')).default.getRepository((await import('../entities/User')).User);
-        const existingUser = await userRepository.findOne({ where: { id: user.id } });
+        logger.info(`generateSimulado called: user=${user?.id}, subject=${subject}`);
+
+        if (!user) {
+            logger.warn('generateSimulado: No user in request');
+            return res.status(401).json({ success: false, message: 'Não autorizado' });
+        }
+
+        // Credits logic for simulados: all users consume credits now
+        const userRepository = AppDataSource.getRepository(User);
+        let existingUser: any;
+        try {
+            existingUser = await userRepository.findOne({ where: { id: user.id } });
+        } catch (dbErr) {
+            logger.error('Error fetching user from DB:', dbErr);
+            return res.status(500).json({ success: false, message: 'Erro ao buscar usuário no banco de dados' });
+        }
+
         if (!existingUser) {
+            logger.warn(`generateSimulado: User ${user.id} not found in DB`);
             return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
         }
 
-        const creditCost = existingUser.status === 'premium' ? 0 : 1.0;
+        const creditCost = 0.3; // 0.3 per question, 30 questions = 9 credits per simulado
         const currentCredits = Number(existingUser.credits);
 
-        if (creditCost > 0 && currentCredits < creditCost) {
+        logger.info(`Simulado request for user ${user.id}: current credits=${currentCredits}, cost per question=${creditCost}`);
+
+        if (currentCredits < creditCost) {
+            logger.warn(`User ${user.id} out of credits for simulado: ${currentCredits} < ${creditCost}`);
             return res.status(403).json({ success: false, message: 'Créditos insuficientes para gerar simulado', code: 'OUT_OF_CREDITS' });
         }
 
-        // Deduct beforehand if not premium
-        if (creditCost > 0) {
-            existingUser.credits = Math.round((currentCredits - creditCost) * 100) / 100;
+        // Deduct credits before calling AI
+        const newCredits = currentCredits - creditCost;
+        existingUser.credits = Math.round(newCredits * 100) / 100;
+        try {
             await userRepository.save(existingUser);
+        } catch (saveErr) {
+            logger.error('Error saving user credits:', saveErr);
+            return res.status(500).json({ success: false, message: 'Erro ao atualizar créditos' });
         }
 
         try {
+            logger.info(`Calling generateSimulado service for subject: ${subject}`);
             const questions = await studyPlanService.generateSimulado(subject);
+            logger.info(`Successfully generated ${questions.length} questions for ${subject}`);
             return res.status(200).json({ success: true, data: questions, credits: existingUser.credits });
-        } catch (genErr) {
+        } catch (genErr: any) {
             // Refund on failure
-            if (creditCost > 0) {
-                existingUser.credits = currentCredits;
+            logger.error('Error generating simulado, refunding credits:', genErr);
+            existingUser.credits = currentCredits;
+            try {
                 await userRepository.save(existingUser);
+            } catch (refundErr) {
+                logger.error('Error refunding credits:', refundErr);
             }
             throw genErr;
         }
     } catch (error: any) {
         logger.error('Error generating simulado:', error);
-        res.status(500).json({ success: false, message: error.message });
+        res.status(500).json({ success: false, message: error.message || 'Erro ao gerar simulado' });
     }
 };
