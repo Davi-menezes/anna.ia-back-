@@ -80,7 +80,7 @@ export const generateResponse = async (req: Request, res: Response) => {
         try {
             // Call Gemini
             const model = genAI.getGenerativeModel({
-                model: 'gemini-pro',
+                model: 'gemini-1.5-flash',
             });
 
             // Format history for Gemini SDK
@@ -104,17 +104,17 @@ REGRAS ESTRITAS DE CONTEÚDO:
 MENSAGEM DE RECUSA PADRÃO:
 "Desculpe, mas como seu professor virtual, meu foco é exclusivamente ajudar você em seus estudos e matérias escolares. Vamos voltar para o aprendizado? O que você está estudando hoje?"`;
 
+            // Prepend system prompt to the first user message if no history
+            let promptWithSystem = prompt;
+            if (!formattedHistory || formattedHistory.length === 0) {
+                promptWithSystem = `${systemPrompt}\n\nPergunta do aluno: ${prompt}`;
+            }
+
             const chat = model.startChat({
                 history: formattedHistory,
             });
 
-            // Add system prompt to the beginning if history is empty
-            if (!formattedHistory || formattedHistory.length === 0) {
-                const systemMsg = await chat.sendMessage(systemPrompt);
-                logger.info('System prompt sent to Gemini');
-            }
-
-            const result = await chat.sendMessage(prompt);
+            const result = await chat.sendMessage(promptWithSystem);
             const response = await result.response;
             text = response.text();
 
