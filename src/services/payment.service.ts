@@ -58,7 +58,8 @@ export const handleStripeWebhook = async (event: Stripe.Event) => {
       }
 
       const creditsToAdd = calcularCreditos(amount);
-      user.credits += creditsToAdd;
+      const previousCredits = Number(user.credits);
+      user.credits = Math.round((previousCredits + creditsToAdd) * 100) / 100;
       await userRepository.save(user);
 
       return { success: true, message: `Pagamento via Stripe processado. ${creditsToAdd} créditos adicionados.` };
@@ -102,7 +103,7 @@ export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
       }
 
       if (preApproval.status === 'authorized') {
-        const previousCredits = user.credits;
+        const previousCredits = Number(user.credits);
         user.status = UserStatus.PREMIUM;
         user.credits = 500;
         await userRepository.save(user);
@@ -149,9 +150,9 @@ export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
       }
 
       const creditsToAdd = calcularCreditos(paidAmount);
-      const previousCredits = user.credits;
+      const previousCredits = Number(user.credits);
 
-      user.credits += creditsToAdd;
+      user.credits = Math.round((previousCredits + creditsToAdd) * 100) / 100;
       await userRepository.save(user);
 
       logger.info('Credits added to user via Mercado Pago', {
