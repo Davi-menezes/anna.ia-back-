@@ -9,6 +9,12 @@ import { logger } from '../utils/logger';
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
+const SIMULADO_MAX_OUTPUT_TOKENS = Number(process.env.SIMULADO_MAX_OUTPUT_TOKENS || 3500);
+const SIMULADO_TEMPERATURE = Number(process.env.SIMULADO_TEMPERATURE || 0.7);
+const SIMULADO_CACHE_TTL_MS = Number(process.env.SIMULADO_CACHE_TTL_MS || 24 * 60 * 60 * 1000);
+
+const simuladoCache = new Map<string, { expiresAt: number; questions: any[] }>();
+
 async function listGeminiV1Models(apiKey: string): Promise<Array<{ name?: string; supportedGenerationMethods?: string[] }>> {
     const url = `https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(apiKey)}`;
     const res = await fetch(url, { method: 'GET' });
@@ -51,7 +57,11 @@ async function generateWithGeminiV1(params: {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-            contents: [{ role: 'user', parts: [{ text: params.prompt }] }]
+            contents: [{ role: 'user', parts: [{ text: params.prompt }] }],
+            generationConfig: {
+                maxOutputTokens: SIMULADO_MAX_OUTPUT_TOKENS,
+                temperature: SIMULADO_TEMPERATURE,
+            }
         })
     });
 
@@ -246,6 +256,13 @@ export class StudyPlanService {
         const dd = String(today.getDate()).padStart(2, '0');
         const dateSeed = `${yyyy}-${mm}-${dd}`;
 
+        const cacheKey = `simulado:${subject}:${dateSeed}:${GEMINI_MODEL}`;
+        const cached = simuladoCache.get(cacheKey);
+        if (cached && cached.expiresAt > Date.now()) {
+            logger.info(`Simulado cache hit: ${cacheKey}`);
+            return cached.questions;
+        }
+
         const prompt = `
             Você é um especialista em criar provas e simulados.
             Gere um simulado de 30 questões de múltipla escolha sobre o tema "${subject}".
@@ -278,6 +295,8 @@ export class StudyPlanService {
             ]
         `;
 
+        logger.info(`Simulado prompt size: subject=${subject} dateSeed=${dateSeed} promptChars=${prompt.length}`);
+
         try {
             const text = await generateWithGeminiV1AutoModel({
                 apiKey: config.gemini.apiKey,
@@ -292,6 +311,11 @@ export class StudyPlanService {
             if (!Array.isArray(questions) || questions.length !== 30) {
                 throw new Error('Formato inválido: o simulado deve conter exatamente 30 questões.');
             }
+
+            simuladoCache.set(cacheKey, {
+                expiresAt: Date.now() + SIMULADO_CACHE_TTL_MS,
+                questions
+            });
 
             // Add IDs to the questions
             const questionsWithIds = questions.map((q: any, index: number) => ({

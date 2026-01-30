@@ -7,6 +7,8 @@ import { StudyPlan } from '../entities/StudyPlan';
 import { StudyPlanSubject } from '../entities/StudyPlanSubject';
 import { WeeklySchedule } from '../entities/WeeklySchedule';
 import { ChatMessage } from '../entities/ChatMessage';
+import { Flashcard } from '../entities/Flashcard';
+import { QuestionGoal } from '../entities/QuestionGoal';
 
 dotenv.config({
   path: path.resolve(
@@ -32,7 +34,7 @@ const AppDataSource = new DataSource({
   database: process.env.DATABASE_URL ? undefined : (process.env.DB_NAME || 'postgres'),
   synchronize: false,
   logging: !isProduction,
-  entities: [User, StudyPlan, StudyPlanSubject, WeeklySchedule, ChatMessage],
+  entities: [User, StudyPlan, StudyPlanSubject, WeeklySchedule, ChatMessage, Flashcard, QuestionGoal],
   migrations: [path.resolve(__dirname, '..', 'migrations', '*.{ts,js}')],
   subscribers: [],
   ssl: isProduction ? { rejectUnauthorized: false } : false,

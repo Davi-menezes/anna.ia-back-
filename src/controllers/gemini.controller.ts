@@ -7,6 +7,11 @@ import { logger } from '../utils/logger';
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
+const CHAT_MAX_HISTORY_MESSAGES = Number(process.env.CHAT_MAX_HISTORY_MESSAGES || 8);
+const CHAT_MAX_PROMPT_CHARS = Number(process.env.CHAT_MAX_PROMPT_CHARS || 4000);
+const CHAT_MAX_OUTPUT_TOKENS = Number(process.env.CHAT_MAX_OUTPUT_TOKENS || 700);
+const CHAT_TEMPERATURE = Number(process.env.CHAT_TEMPERATURE || 0.6);
+
 async function listGeminiV1Models(apiKey: string): Promise<Array<{ name?: string; supportedGenerationMethods?: string[] }>> {
     const url = `https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(apiKey)}`;
     const res = await fetch(url, { method: 'GET' });
@@ -56,6 +61,10 @@ async function generateWithGeminiV1(params: {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
             contents,
+            generationConfig: {
+                maxOutputTokens: CHAT_MAX_OUTPUT_TOKENS,
+                temperature: CHAT_TEMPERATURE,
+            }
         })
     });
 
@@ -186,13 +195,18 @@ MENSAGEM DE RECUSA PADRÃO:
             }));
 
             const firstUserIndex = historyRaw.findIndex((m: { role: 'user' | 'model'; content: string }) => m.role === 'user');
-            const safeHistory = firstUserIndex >= 0 ? historyRaw.slice(firstUserIndex) : [];
+            const trimmedHistory = firstUserIndex >= 0 ? historyRaw.slice(firstUserIndex) : [];
+            const safeHistory = trimmedHistory.slice(Math.max(0, trimmedHistory.length - CHAT_MAX_HISTORY_MESSAGES));
+
+            const normalizedPrompt = String(prompt || '').slice(0, CHAT_MAX_PROMPT_CHARS);
+
+            logger.info(`Chat payload sizes: promptChars=${normalizedPrompt.length} historyMessages=${safeHistory.length}`);
 
             text = await generateWithGeminiV1AutoModel({
                 apiKey: config.gemini.apiKey,
                 model: GEMINI_MODEL,
                 history: safeHistory,
-                prompt: `${systemPrompt}\n\nPergunta do aluno: ${prompt}`
+                prompt: `${systemPrompt}\n\nPergunta do aluno: ${normalizedPrompt}`
             });
 
             if (!text) {

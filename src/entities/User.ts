@@ -46,6 +46,12 @@ export class User {
   @Column({ type: 'decimal', precision: 10, scale: 2, default: 5.0, name: 'credits' })
   credits!: number;
 
+  @Column({ type: 'boolean', default: false, name: 'free_simulado_used' })
+  freeSimuladoUsed!: boolean;
+
+  @Column({ type: 'timestamp', nullable: true, name: 'free_simulado_used_at' })
+  freeSimuladoUsedAt?: Date;
+
   @Column({
     type: 'enum',
     enum: UserStatus,

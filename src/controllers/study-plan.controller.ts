@@ -78,26 +78,39 @@ export const generateSimulado = async (req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
         }
 
-        const creditCostPerQuestion = 0.3;
-        const questionsCount = 30;
-        const creditCost = Math.round((creditCostPerQuestion * questionsCount) * 100) / 100;
+        const creditCost = 12;
         const currentCredits = Number(existingUser.credits);
 
-        logger.info(`Simulado request for user ${user.id}: current credits=${currentCredits}, total cost=${creditCost} (${questionsCount} x ${creditCostPerQuestion})`);
+        const freeTrialAvailable = !existingUser.freeSimuladoUsed;
 
-        if (currentCredits < creditCost) {
-            logger.warn(`User ${user.id} out of credits for simulado: ${currentCredits} < ${creditCost}`);
-            return res.status(403).json({ success: false, message: 'Créditos insuficientes para gerar simulado', code: 'OUT_OF_CREDITS' });
-        }
+        logger.info(`Simulado request for user ${user.id}: current credits=${currentCredits}, cost=${creditCost}, freeTrialAvailable=${freeTrialAvailable}`);
 
-        // Deduct credits before calling AI
-        const newCredits = currentCredits - creditCost;
-        existingUser.credits = Math.round(newCredits * 100) / 100;
-        try {
-            await userRepository.save(existingUser);
-        } catch (saveErr) {
-            logger.error('Error saving user credits:', saveErr);
-            return res.status(500).json({ success: false, message: 'Erro ao atualizar créditos' });
+        let charged = false;
+        if (freeTrialAvailable) {
+            existingUser.freeSimuladoUsed = true;
+            existingUser.freeSimuladoUsedAt = new Date();
+            try {
+                await userRepository.save(existingUser);
+            } catch (saveErr) {
+                logger.error('Error saving user free simulado flag:', saveErr);
+                return res.status(500).json({ success: false, message: 'Erro ao atualizar dados do usuário' });
+            }
+        } else {
+            if (currentCredits < creditCost) {
+                logger.warn(`User ${user.id} out of credits for simulado: ${currentCredits} < ${creditCost}`);
+                return res.status(403).json({ success: false, message: 'Créditos insuficientes para gerar simulado', code: 'OUT_OF_CREDITS' });
+            }
+
+            // Deduct credits before calling AI
+            const newCredits = currentCredits - creditCost;
+            existingUser.credits = Math.round(newCredits * 100) / 100;
+            try {
+                await userRepository.save(existingUser);
+                charged = true;
+            } catch (saveErr) {
+                logger.error('Error saving user credits:', saveErr);
+                return res.status(500).json({ success: false, message: 'Erro ao atualizar créditos' });
+            }
         }
 
         try {
@@ -108,7 +121,14 @@ export const generateSimulado = async (req: Request, res: Response) => {
         } catch (genErr: any) {
             // Refund on failure
             logger.error('Error generating simulado, refunding credits:', genErr);
-            existingUser.credits = currentCredits;
+            if (charged) {
+                existingUser.credits = currentCredits;
+            }
+            // If it was a free trial, allow retry by resetting the flag
+            if (!charged && freeTrialAvailable) {
+                existingUser.freeSimuladoUsed = false;
+                existingUser.freeSimuladoUsedAt = null as any;
+            }
             try {
                 await userRepository.save(existingUser);
             } catch (refundErr) {

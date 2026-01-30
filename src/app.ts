@@ -12,6 +12,8 @@ import authRoutes from './routes/auth.routes';
 import geminiRoutes from './routes/gemini.routes';
 import studyPlanRoutes from './routes/study-plan.routes';
 import paymentRoutes from './routes/payment.routes';
+import flashcardsRoutes from './routes/flashcards.routes';
+import questionGoalsRoutes from './routes/question-goals.routes';
 
 // Import Passport Configuration
 import './config/passport';
@@ -105,6 +107,8 @@ export function createApp(): Application {
   app.use(`${config.apiPrefix}/users`, userRoutes);
   app.use(`${config.apiPrefix}/gemini`, geminiRoutes);
   app.use(`${config.apiPrefix}/study-plans`, studyPlanRoutes);
+  app.use(`${config.apiPrefix}/flashcards`, flashcardsRoutes);
+  app.use(`${config.apiPrefix}/question-goals`, questionGoalsRoutes);
 
   // Payment routes (webhook não deve ter o prefixo da API para facilitar a configuração no Mercado Pago)
   app.use('/api/payments', paymentRoutes);
