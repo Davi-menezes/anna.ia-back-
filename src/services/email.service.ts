@@ -11,6 +11,12 @@ const sendEmail = async (to: string, subject: string, html: string) => {
     return;
   }
 
+  if (!config.resend.from) {
+    logger.warn('⚠️ Resend from address missing (RESEND_FROM). Mocking email sending.');
+    logger.info(`📧 [MOCK EMAIL] To: ${to} | Subject: ${subject}`);
+    return;
+  }
+
   try {
     const { data, error } = await resend.emails.send({
       from: config.resend.from,

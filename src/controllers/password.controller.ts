@@ -4,12 +4,13 @@ import { User } from '../entities/User';
 import { MoreThan } from 'typeorm';
 import { sendPasswordResetEmail } from '../services/email.service';
 import { config } from '../config/config';
-
-const userRepository = AppDataSource.getRepository(User);
+import { logger } from '../utils/logger';
 
 export const requestPasswordReset = async (req: Request, res: Response) => {
   try {
     const { email } = req.body;
+
+    const userRepository = AppDataSource.getRepository(User);
 
     // Encontrar usuário pelo e-mail
     const user = await userRepository.findOne({ where: { email } });
@@ -34,7 +35,7 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
       message: 'Um e-mail com as instruções para redefinir sua senha foi enviado.'
     });
   } catch (error) {
-    console.error('Erro ao solicitar redefinição de senha:', error);
+    logger.error('Erro ao solicitar redefinição de senha:', error);
     res.status(500).json({
       success: false,
       message: 'Ocorreu um erro ao processar sua solicitação.'
@@ -45,6 +46,8 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
 export const resetPassword = async (req: Request, res: Response) => {
   try {
     const { token, password } = req.body;
+
+    const userRepository = AppDataSource.getRepository(User);
 
     // Encontrar usuário pelo token de redefinição
     const user = await userRepository.findOne({
@@ -70,7 +73,7 @@ export const resetPassword = async (req: Request, res: Response) => {
       message: 'Senha redefinida com sucesso!'
     });
   } catch (error) {
-    console.error('Erro ao redefinir senha:', error);
+    logger.error('Erro ao redefinir senha:', error);
     res.status(500).json({
       success: false,
       message: 'Ocorreu um erro ao redefinir sua senha.'
