@@ -9,6 +9,35 @@ import { logger } from '../utils/logger';
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
+async function listGeminiV1Models(apiKey: string): Promise<Array<{ name?: string; supportedGenerationMethods?: string[] }>> {
+    const url = `https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(apiKey)}`;
+    const res = await fetch(url, { method: 'GET' });
+    const raw = await res.text();
+    if (!res.ok) {
+        throw new Error(`Gemini v1 listModels error (${res.status}): ${raw}`);
+    }
+
+    const data = JSON.parse(raw);
+    return Array.isArray(data?.models) ? data.models : [];
+}
+
+function pickGeminiV1Model(models: Array<{ name?: string; supportedGenerationMethods?: string[] }>): string {
+    const supported = models
+        .map(m => ({
+            name: (m.name || '').replace(/^models\//, ''),
+            methods: m.supportedGenerationMethods || [],
+        }))
+        .filter(m => m.name && m.methods.includes('generateContent'))
+        .map(m => m.name);
+
+    const preferred = supported.find(n => n.includes('flash')) || supported[0];
+    if (!preferred) {
+        throw new Error('Gemini v1: nenhum modelo com generateContent encontrado em ListModels.');
+    }
+
+    return preferred;
+}
+
 async function generateWithGeminiV1(params: {
     apiKey: string;
     model: string;
@@ -34,6 +63,28 @@ async function generateWithGeminiV1(params: {
     const data = JSON.parse(raw);
     const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).filter(Boolean).join('') || '';
     return text;
+}
+
+async function generateWithGeminiV1AutoModel(params: {
+    apiKey: string;
+    model: string;
+    prompt: string;
+}): Promise<string> {
+    try {
+        return await generateWithGeminiV1(params);
+    } catch (err: any) {
+        const msg = String(err?.message || err);
+        if (!msg.includes('Gemini v1 error (404)')) {
+            throw err;
+        }
+
+        logger.warn(`Gemini model not found: ${params.model}. Attempting ListModels fallback.`);
+        const models = await listGeminiV1Models(params.apiKey);
+        const fallbackModel = pickGeminiV1Model(models);
+        logger.warn(`Gemini fallback model selected: ${fallbackModel}`);
+
+        return await generateWithGeminiV1({ ...params, model: fallbackModel });
+    }
 }
 
 export class StudyPlanService {
@@ -124,7 +175,7 @@ export class StudyPlanService {
     `;
 
         try {
-            const text = await generateWithGeminiV1({
+            const text = await generateWithGeminiV1AutoModel({
                 apiKey: config.gemini.apiKey,
                 model: GEMINI_MODEL,
                 prompt
@@ -228,7 +279,7 @@ export class StudyPlanService {
         `;
 
         try {
-            const text = await generateWithGeminiV1({
+            const text = await generateWithGeminiV1AutoModel({
                 apiKey: config.gemini.apiKey,
                 model: GEMINI_MODEL,
                 prompt
