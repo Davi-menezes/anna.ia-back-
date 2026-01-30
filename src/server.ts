@@ -16,6 +16,13 @@ async function startServer(): Promise<void> {
     // Initialize database connection
     await AppDataSource.initialize();
     logger.info('✅ Connected to PostgreSQL database');
+
+    const runMigrations = String(process.env.RUN_MIGRATIONS || '').toLowerCase() === 'true';
+    if (runMigrations) {
+      logger.info('🔄 RUN_MIGRATIONS=true: running pending migrations...');
+      await AppDataSource.runMigrations();
+      logger.info('✅ Migrations completed');
+    }
     // Start the server
     server.listen(config.port, () => {
       logger.info(`

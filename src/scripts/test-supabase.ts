@@ -1,11 +1,17 @@
 // @ts-ignore
 import { Client } from 'pg';
 
-// Senha URL-encoded: VjYUL50noFni3wzWQ05bBm6Mh%218GYZzxcuM%25Ghgu
-const url = 'postgresql://postgres.xzzvhwnxjfofhjvvzroz:VjYUL50noFni3wzWQ05bBm6Mh%218GYZzxcuM%25Ghgu@aws-1-us-east-2.pooler.supabase.com:6543/postgres';
+const url = process.env.DATABASE_URL;
 
 async function test() {
     console.log('Testando conexão com Supabase...');
+    if (!url) {
+        console.error('❌ FALHOU: DATABASE_URL não definido');
+        return;
+    }
+    // Log URL sem senha
+    const maskedUrl = url.replace(/\/\/([^:]+):([^@]+)@/, '//***:***@');
+    console.log('URL (senha oculta):', maskedUrl);
     const client = new Client({
         connectionString: url,
         ssl: { rejectUnauthorized: false }
