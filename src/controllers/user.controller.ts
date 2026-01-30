@@ -206,15 +206,6 @@ export const deductCredits = async (req: Request, res: Response) => {
       });
     }
 
-    // Bypass deduction for premium users
-    if (existingUser.status === 'premium') {
-      return res.status(200).json({
-        success: true,
-        message: 'Créditos disponíveis para usuários premium',
-        credits: existingUser.credits
-      });
-    }
-
     // Convert decimal from DB to number just in case
     const currentCredits = Number(existingUser.credits);
 

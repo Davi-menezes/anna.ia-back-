@@ -78,10 +78,12 @@ export const generateSimulado = async (req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
         }
 
-        const creditCost = 0.3; // 0.3 per question, 30 questions = 9 credits per simulado
+        const creditCostPerQuestion = 0.3;
+        const questionsCount = 30;
+        const creditCost = Math.round((creditCostPerQuestion * questionsCount) * 100) / 100;
         const currentCredits = Number(existingUser.credits);
 
-        logger.info(`Simulado request for user ${user.id}: current credits=${currentCredits}, cost per question=${creditCost}`);
+        logger.info(`Simulado request for user ${user.id}: current credits=${currentCredits}, total cost=${creditCost} (${questionsCount} x ${creditCostPerQuestion})`);
 
         if (currentCredits < creditCost) {
             logger.warn(`User ${user.id} out of credits for simulado: ${currentCredits} < ${creditCost}`);
