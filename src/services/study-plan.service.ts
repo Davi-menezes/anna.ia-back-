@@ -304,12 +304,38 @@ export class StudyPlanService {
                 prompt
             });
 
-            const jsonStr = text.match(/\[[\s\S]*\]/)?.[0] || text;
+            logger.info(`Gemini response length: ${text.length} chars`);
+
+            // Try multiple JSON extraction strategies
+            let jsonStr = text;
+            
+            // Strategy 1: Look for JSON array
+            const arrayMatch = text.match(/\[[\s\S]*\]/);
+            if (arrayMatch) {
+                jsonStr = arrayMatch[0];
+            } else {
+                // Strategy 2: Look for JSON object (in case it's wrapped)
+                const objectMatch = text.match(/\{[\s\S]*\}/);
+                if (objectMatch) {
+                    jsonStr = objectMatch[0];
+                }
+            }
+
+            // Clean common JSON issues
+            jsonStr = jsonStr
+                .replace(/,\s*}/g, '}')  // Remove trailing commas
+                .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
+                .replace(/\\n/g, '\\\\n')  // Escape newlines
+                .replace(/\\"/g, '\\\\"')  // Escape quotes
+                .trim();
+
+            logger.info(`Attempting to parse JSON, first 200 chars: ${jsonStr.substring(0, 200)}...`);
+
             const questions = JSON.parse(jsonStr);
 
             // Validate 30 questions
             if (!Array.isArray(questions) || questions.length !== 30) {
-                throw new Error('Formato inválido: o simulado deve conter exatamente 30 questões.');
+                throw new Error(`Formato inválido: o simulado deve conter exatamente 30 questões. Recebido: ${Array.isArray(questions) ? questions.length : 'não é array'}`);
             }
 
             simuladoCache.set(cacheKey, {
@@ -324,9 +350,9 @@ export class StudyPlanService {
             }));
 
             return questionsWithIds;
-        } catch (error) {
+        } catch (error: any) {
             logger.error('Erro ao gerar simulado com Gemini:', error);
-
+            
             throw new Error('Não conseguimos gerar seu simulado no momento. Tente novamente.');
         }
     }
