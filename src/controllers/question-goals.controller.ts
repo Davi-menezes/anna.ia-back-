@@ -19,12 +19,15 @@ export const getTodayGoal = async (req: Request, res: Response) => {
 
     const goalDate = todayISODate();
 
-    const existing = await repo.findOne({ where: { user: { id: user.id }, goalDate }, relations: ['user'] });
-    if (!existing) {
-      return res.status(200).json({ success: true, data: { goalDate, targetQuestions: 0, completedQuestions: 0 } });
+    let goal = await repo.findOne({ where: { user: { id: user.id }, goalDate }, relations: ['user'] });
+    if (!goal) {
+      goal = repo.create({ user: { id: user.id }, goalDate, targetQuestions: 0, completedQuestions: 0 });
     }
 
-    res.status(200).json({ success: true, data: existing });
+    // For now, keep the existing completedQuestions value
+    // TODO: Calculate from actual simulado responses when we implement tracking
+
+    res.status(200).json({ success: true, data: goal });
   } catch (error) {
     logger.error('Error getting today goal:', error);
     res.status(500).json({ success: false, message: 'Erro ao buscar meta do dia' });
