@@ -76,11 +76,11 @@ export const setTodayGoal = async (req: Request, res: Response) => {
 export const updateCompletedQuestions = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const { completedQuestions } = req.body;
+    const { amount } = req.body;
 
-    const completed = Number(completedQuestions);
-    if (!Number.isFinite(completed) || completed < 0) {
-      return res.status(400).json({ success: false, message: 'completedQuestions deve ser um número >= 0' });
+    const amountToAdd = Number(amount);
+    if (!Number.isFinite(amountToAdd) || amountToAdd < 0) {
+      return res.status(400).json({ success: false, message: 'amount deve ser um número >= 0' });
     }
 
     const repo = AppDataSource.getRepository(QuestionGoal);
@@ -96,14 +96,14 @@ export const updateCompletedQuestions = async (req: Request, res: Response) => {
     let goal = await repo.findOne({ where: { user: { id: user.id }, goalDate } });
     
     if (goal) {
-      goal.completedQuestions = completed;
+      goal.completedQuestions += amountToAdd;
       await repo.save(goal);
     } else {
       goal = repo.create({ 
         user: { id: user.id }, 
         goalDate, 
         targetQuestions: 0, 
-        completedQuestions: completed 
+        completedQuestions: amountToAdd 
       });
       await repo.save(goal);
     }
