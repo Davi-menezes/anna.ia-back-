@@ -162,7 +162,7 @@ Gere flashcards sobre conceitos fundamentais, definições e fórmulas important
           realCost: '$0.001',
           dailyCost: '$0.001',
           monthlyEstimate: '$0.03',
-          viability: 'EXTREMELY LUCRATIVO'
+          viability: 'EXTREMAMENTE LUCRATIVO'
         }
       }
     });
