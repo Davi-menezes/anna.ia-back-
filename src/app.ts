@@ -16,6 +16,7 @@ import flashcardsRoutes from './routes/flashcards.routes';
 import questionGoalsRoutes from './routes/question-goals.routes';
 import flashcardsEnhancedRoutes from './routes/flashcards-enhanced.routes';
 import studyPlanEnhancedRoutes from './routes/study-plan-enhanced.routes';
+import simuladoRoutes from './routes/simulado.routes';
 
 // Import Passport Configuration
 import './config/passport';
@@ -113,6 +114,7 @@ export function createApp(): Application {
   app.use(`${config.apiPrefix}/flashcards-enhanced`, flashcardsEnhancedRoutes);
   app.use(`${config.apiPrefix}/study-plan-enhanced`, studyPlanEnhancedRoutes);
   app.use(`${config.apiPrefix}/question-goals`, questionGoalsRoutes);
+  app.use(`${config.apiPrefix}/simulado`, simuladoRoutes);
 
   // Payment routes (webhook não deve ter o prefixo da API para facilitar a configuração no Mercado Pago)
   app.use('/api/payments', paymentRoutes);

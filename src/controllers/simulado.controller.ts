@@ -6,7 +6,9 @@ import { logger } from '../utils/logger';
 
 export const generateSimulado = async (req: Request, res: Response) => {
   try {
-    const { subject, difficulty = 'medium', count = 30 } = req.body;
+    const { subject } = req.params;
+    const difficulty = (req.query.difficulty as string) || 'medium';
+    const count = parseInt(req.query.count as string) || 30;
     const user = req.user as any;
 
     if (!user) {

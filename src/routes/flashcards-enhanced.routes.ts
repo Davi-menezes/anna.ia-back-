@@ -1,13 +1,16 @@
 import { Router } from 'express';
 import { authenticate } from '../middlewares/auth.middleware';
-import { generateDailyFlashcards, listFlashcards, createFlashcard, updateFlashcardStatus } from '../controllers/flashcards-enhanced.controller';
+import { generateFlashcards, generateDailyFlashcards, listFlashcards, createFlashcard, updateFlashcardStatus } from '../controllers/flashcards-enhanced.controller';
 
 const router = Router();
 
 router.use(authenticate);
 
 // Gerar flashcards com IA (0.5 crédito)
-router.post('/generate', generateDailyFlashcards);
+router.post('/generate', generateFlashcards);
+
+// Gerar flashcards diários com IA (0.5 crédito)
+router.post('/generate-daily', generateDailyFlashcards);
 
 // Listar flashcards
 router.get('/', listFlashcards);

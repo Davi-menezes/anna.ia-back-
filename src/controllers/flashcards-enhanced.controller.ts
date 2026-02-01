@@ -15,6 +15,155 @@ const GEMINI_MODEL = 'gemini-1.5-flash';
 // Custo por 10 flashcards: ~$0.001 (menos de 1 centavo de dólar)
 // Custo mensal (10 flashcards/dia × 30 dias): ~$0.03 (3 centavos de dólar)
 
+export const generateFlashcards = async (req: Request, res: Response) => {
+  try {
+    const { subject, count = 10, topics } = req.body;
+    const user = req.user as any;
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Não autorizado'
+      });
+    }
+
+    if (!subject) {
+      return res.status(400).json({
+        success: false,
+        message: 'Matéria é obrigatória'
+      });
+    }
+
+    if (!GEMINI_API_KEY) {
+      return res.status(503).json({
+        success: false,
+        message: 'Serviço de IA indisponível'
+      });
+    }
+
+    const flashcardRepository = AppDataSource.getRepository(Flashcard);
+    const userRepository = AppDataSource.getRepository(User);
+
+    // VERIFICAR CRÉDITOS - FLASHCARDS CUSTAM 0.5 CRÉDITO
+    const currentUser = await userRepository.findOneBy({ id: user.id });
+    if (!currentUser || currentUser.credits < 0.5) {
+      return res.status(400).json({
+        success: false,
+        message: 'Créditos insuficientes para gerar flashcards (0.5 crédito necessário)'
+      });
+    }
+
+    // Gerar flashcards com Gemini
+    let prompt = `Gere ${count} flashcards de estudo para a matéria "${subject}".`;
+
+    if (topics && topics.length > 0) {
+      prompt += ` Foque especificamente nos tópicos: ${topics.join(', ')}.`;
+    }
+
+    prompt += `
+
+IMPORTANTE: Responda APENAS em formato JSON array, sem texto adicional. Cada flashcard deve ter:
+- front: a pergunta/conceito (máximo 100 caracteres)
+- back: a resposta/explicação (máximo 200 caracteres)
+
+Exemplo de formato:
+[
+  {"front": "O que é fotossíntese?", "back": "Processo pelo qual plantas convertem luz em energia química"},
+  {"front": "Fórmula da água", "back": "H₂O - Dois átomos de hidrogênio e um de oxigênio"}
+]
+
+Gere flashcards sobre conceitos fundamentais, definições e fórmulas importantes de ${subject}.`;
+
+    const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        contents: [{
+          parts: [{
+            text: prompt
+          }]
+        }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 1000,
+        }
+      })
+    });
+
+    if (!geminiResponse.ok) {
+      throw new Error(`Gemini API error: ${geminiResponse.status}`);
+    }
+
+    const geminiData = await geminiResponse.json() as any;
+    const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
+
+    if (!text) {
+      throw new Error('Resposta vazia da Gemini API');
+    }
+
+    // Extrair JSON da resposta
+    let flashcardsData;
+    try {
+      // Procurar por array JSON na resposta
+      const jsonMatch = text.match(/\[[\s\S]*\]/);
+      if (!jsonMatch) {
+        throw new Error('JSON não encontrado na resposta');
+      }
+      flashcardsData = JSON.parse(jsonMatch[0]);
+    } catch (error) {
+      logger.error('Erro ao parsear flashcards:', error);
+      return res.status(500).json({
+        success: false,
+        message: 'Erro ao processar resposta da IA'
+      });
+    }
+
+    // Salvar flashcards no banco
+    const savedFlashcards = [];
+    for (const flashcardData of flashcardsData) {
+      try {
+        const flashcard = flashcardRepository.create({
+          user: { id: user.id },
+          subject,
+          front: flashcardData.front,
+          back: flashcardData.back,
+          status: 'new'
+        });
+        const saved = await flashcardRepository.save(flashcard);
+        savedFlashcards.push(saved);
+      } catch (error) {
+        logger.error('Erro ao salvar flashcard:', error);
+      }
+    }
+
+    // Deduzir 0.5 crédito
+    await userRepository.update(user.id, {
+      credits: currentUser.credits - 0.5
+    });
+
+    logger.info(`Flashcards gerados: ${savedFlashcards.length} de ${subject} - Usuário: ${user.id}`);
+
+    res.json({
+      success: true,
+      data: {
+        flashcards: savedFlashcards,
+        subject,
+        totalGenerated: savedFlashcards.length,
+        creditsRemaining: currentUser.credits - 0.5
+      }
+    });
+
+  } catch (error) {
+    logger.error('Erro ao gerar flashcards:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Erro ao gerar flashcards'
+    });
+  }
+};
+
 export const generateDailyFlashcards = async (req: Request, res: Response) => {
   try {
     const { subject, count = 10 } = req.body;

@@ -5,7 +5,7 @@ import { authenticate } from '../middlewares/auth.middleware';
 const router = Router();
 
 // Gerar simulado
-router.post('/generate', authenticate, generateSimulado);
+router.get('/:subject', authenticate, generateSimulado);
 
 // Listar matérias disponíveis
 router.get('/subjects', getAvailableSubjects);
