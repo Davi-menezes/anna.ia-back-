@@ -31,7 +31,7 @@ export const generateSimulado = async (req: Request, res: Response) => {
     if (!currentUser || currentUser.credits < 1) {
       return res.status(400).json({
         success: false,
-        message: 'Créditos insuficientes'
+        message: 'Créditos insuficientes para gerar simulado (1 crédito necessário)'
       });
     }
 
@@ -74,7 +74,11 @@ export const generateSimulado = async (req: Request, res: Response) => {
         subject,
         difficulty,
         totalQuestions: questions.length,
-        creditsRemaining: currentUser.credits - 1
+        creditsRemaining: currentUser.credits - 1,
+        costInfo: {
+          creditsUsed: 1,
+          creditsRemaining: currentUser.credits - 1
+        }
       }
     });
 
