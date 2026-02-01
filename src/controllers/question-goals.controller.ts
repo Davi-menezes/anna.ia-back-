@@ -24,9 +24,6 @@ export const getTodayGoal = async (req: Request, res: Response) => {
       goal = repo.create({ user: { id: user.id }, goalDate, targetQuestions: 0, completedQuestions: 0 });
     }
 
-    // For now, keep the existing completedQuestions value
-    // TODO: Calculate from actual simulado responses when we implement tracking
-
     res.status(200).json({ success: true, data: goal });
   } catch (error) {
     logger.error('Error getting today goal:', error);
@@ -53,31 +50,37 @@ export const setTodayGoal = async (req: Request, res: Response) => {
     }
 
     const goalDate = todayISODate();
-
-    let goal = await repo.findOne({ where: { user: { id: user.id }, goalDate }, relations: ['user'] });
-    if (!goal) {
-      goal = repo.create({ user: existingUser, goalDate, targetQuestions: target, completedQuestions: 0 });
-    } else {
+    
+    let goal = await repo.findOne({ where: { user: { id: user.id }, goalDate } });
+    
+    if (goal) {
       goal.targetQuestions = target;
-      // keep completedQuestions
+      await repo.save(goal);
+    } else {
+      goal = repo.create({ 
+        user: { id: user.id }, 
+        goalDate, 
+        targetQuestions: target, 
+        completedQuestions: 0 
+      });
+      await repo.save(goal);
     }
 
-    const saved = await repo.save(goal);
-    res.status(200).json({ success: true, data: saved });
+    res.status(200).json({ success: true, data: goal });
   } catch (error) {
     logger.error('Error setting today goal:', error);
     res.status(500).json({ success: false, message: 'Erro ao definir meta do dia' });
   }
 };
 
-export const incrementTodayProgress = async (req: Request, res: Response) => {
+export const updateCompletedQuestions = async (req: Request, res: Response) => {
   try {
     const user = (req as any).user;
-    const { amount } = req.body;
+    const { completedQuestions } = req.body;
 
-    const inc = Number(amount);
-    if (!Number.isFinite(inc) || inc <= 0) {
-      return res.status(400).json({ success: false, message: 'amount deve ser um número > 0' });
+    const completed = Number(completedQuestions);
+    if (!Number.isFinite(completed) || completed < 0) {
+      return res.status(400).json({ success: false, message: 'completedQuestions deve ser um número >= 0' });
     }
 
     const repo = AppDataSource.getRepository(QuestionGoal);
@@ -89,17 +92,47 @@ export const incrementTodayProgress = async (req: Request, res: Response) => {
     }
 
     const goalDate = todayISODate();
-    let goal = await repo.findOne({ where: { user: { id: user.id }, goalDate }, relations: ['user'] });
-    if (!goal) {
-      goal = repo.create({ user: existingUser, goalDate, targetQuestions: 0, completedQuestions: 0 });
+    
+    let goal = await repo.findOne({ where: { user: { id: user.id }, goalDate } });
+    
+    if (goal) {
+      goal.completedQuestions = completed;
+      await repo.save(goal);
+    } else {
+      goal = repo.create({ 
+        user: { id: user.id }, 
+        goalDate, 
+        targetQuestions: 0, 
+        completedQuestions: completed 
+      });
+      await repo.save(goal);
     }
 
-    goal.completedQuestions = Math.max(0, (goal.completedQuestions || 0) + inc);
-
-    const saved = await repo.save(goal);
-    res.status(200).json({ success: true, data: saved });
+    res.status(200).json({ success: true, data: goal });
   } catch (error) {
-    logger.error('Error incrementing today progress:', error);
-    res.status(500).json({ success: false, message: 'Erro ao atualizar progresso' });
+    logger.error('Error updating completed questions:', error);
+    res.status(500).json({ success: false, message: 'Erro ao atualizar questões completadas' });
+  }
+};
+
+export const deleteTodayGoal = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const repo = AppDataSource.getRepository(QuestionGoal);
+
+    const goalDate = todayISODate();
+    
+    const goal = await repo.findOne({ where: { user: { id: user.id }, goalDate } });
+    
+    if (!goal) {
+      return res.status(404).json({ success: false, message: 'Meta do dia não encontrada' });
+    }
+
+    await repo.remove(goal);
+
+    res.status(200).json({ success: true, message: 'Meta do dia removida com sucesso' });
+  } catch (error) {
+    logger.error('Error deleting today goal:', error);
+    res.status(500).json({ success: false, message: 'Erro ao remover meta do dia' });
   }
 };
