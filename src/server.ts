@@ -5,6 +5,7 @@ import { config } from './config/config';
 import { createApp } from './app';
 import AppDataSource from './config/data-source';
 import { logger } from './utils/logger';
+import DeploymentInitializer from './scripts/deployment-init';
 
 // Cria a aplicação Express
 const app = createApp();
@@ -22,6 +23,15 @@ async function startServer(): Promise<void> {
       logger.info('🔄 RUN_MIGRATIONS=true: running pending migrations...');
       await AppDataSource.runMigrations();
       logger.info('✅ Migrations completed');
+    }
+
+    // Inicialização do deployment (migrations + importação ENEM)
+    const runDeploymentInit = String(process.env.RUN_DEPLOYMENT_INIT || '').toLowerCase() === 'true';
+    if (runDeploymentInit) {
+      logger.info('🚀 RUN_DEPLOYMENT_INIT=true: initializing deployment...');
+      const initializer = new DeploymentInitializer();
+      await initializer.initialize();
+      logger.info('✅ Deployment initialization completed');
     }
     // Start the server
     server.listen(config.port, () => {

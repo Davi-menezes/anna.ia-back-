@@ -1,0 +1,22 @@
+{
+  "name": "import-enem-questions",
+  "description": "Importar questões reais do ENEM para o banco de dados",
+  "scripts": {
+    "import:enem:all": "ts-node src/services/enem-api.service.ts",
+    "import:enem:2023": "ts-node src/services/enem-api.service.ts --year=2023",
+    "import:enem:2022": "ts-node src/services/enem-api.service.ts --year=2022",
+    "import:enem:2021": "ts-node src/services/enem-api.service.ts --year=2021",
+    "import:enem:2020": "ts-node src/services/enem-api.service.ts --year=2020",
+    "import:enem:2019": "ts-node src/services/enem-api.service.ts --year=2019",
+    "import:enem:2018": "ts-node src/services/enem-api.service.ts --year=2018",
+    "import:enem:2017": "ts-node src/services/enem-api.service.ts --year=2017",
+    "import:enem:2016": "ts-node src/services/enem-api.service.ts --year=2016",
+    "import:enem:2015": "ts-node src/services/enem-api.service.ts --year=2015",
+    "import:enem:2014": "ts-node src/services/enem-api.service.ts --year=2014",
+    "import:enem:2013": "ts-node src/services/enem-api.service.ts --year=2013",
+    "import:enem:2012": "ts-node src/services/enem-api.service.ts --year=2012",
+    "import:enem:2011": "ts-node src/services/enem-api.service.ts --year=2011",
+    "import:enem:2010": "ts-node src/services/enem-api.service.ts --year=2010",
+    "import:enem:2009": "ts-node src/services/enem-api.service.ts --year=2009"
+  }
+}
