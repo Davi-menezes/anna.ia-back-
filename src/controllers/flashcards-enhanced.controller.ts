@@ -74,6 +74,8 @@ Exemplo de formato:
 
 Gere flashcards sobre conceitos fundamentais, definições e fórmulas importantes de ${subject}.`;
 
+    logger.info(`Gerando ${count} flashcards de ${subject} para usuário ${user.id}`);
+
     const geminiResponse = await fetch(`https://generativelanguage.googleapis.com/v1/models/${GEMINI_MODEL}:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: {
@@ -87,12 +89,15 @@ Gere flashcards sobre conceitos fundamentais, definições e fórmulas important
         }],
         generationConfig: {
           temperature: 0.7,
-          maxOutputTokens: 1000,
+          maxOutputTokens: 2000,
+          responseMimeType: 'application/json'
         }
       })
     });
 
     if (!geminiResponse.ok) {
+      const errorBody = await geminiResponse.text();
+      logger.error(`Gemini API error: ${geminiResponse.status} - ${errorBody}`);
       throw new Error(`Gemini API error: ${geminiResponse.status}`);
     }
 
@@ -100,18 +105,33 @@ Gere flashcards sobre conceitos fundamentais, definições e fórmulas important
     const text = geminiData.candidates?.[0]?.content?.parts?.[0]?.text;
 
     if (!text) {
+      logger.error('Resposta vazia da Gemini API:', JSON.stringify(geminiData));
       throw new Error('Resposta vazia da Gemini API');
     }
 
     // Extrair JSON da resposta
     let flashcardsData;
     try {
-      // Procurar por array JSON na resposta
-      const jsonMatch = text.match(/\[[\s\S]*\]/);
-      if (!jsonMatch) {
-        throw new Error('JSON não encontrado na resposta');
+      // Tentar parsear diretamente primeiro
+      try {
+        flashcardsData = JSON.parse(text);
+      } catch (e) {
+        // Procurar por array JSON na resposta se o parse direto falhar
+        const jsonMatch = text.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) {
+          throw new Error('JSON não encontrado na resposta');
+        }
+        flashcardsData = JSON.parse(jsonMatch[0]);
       }
-      flashcardsData = JSON.parse(jsonMatch[0]);
+
+      // Garantir que é um array
+      if (!Array.isArray(flashcardsData)) {
+        if (flashcardsData.flashcards && Array.isArray(flashcardsData.flashcards)) {
+          flashcardsData = flashcardsData.flashcards;
+        } else {
+          throw new Error('Formato de resposta inválido: esperado array');
+        }
+      }
     } catch (error) {
       logger.error('Erro ao parsear flashcards:', error);
       return res.status(500).json({
@@ -392,7 +412,7 @@ export const updateFlashcardStatus = async (req: Request, res: Response) => {
     }
 
     const flashcardRepository = AppDataSource.getRepository(Flashcard);
-    
+
     const flashcard = await flashcardRepository.findOne({
       where: { id, user: { id: user.id } }
     });
@@ -406,7 +426,7 @@ export const updateFlashcardStatus = async (req: Request, res: Response) => {
 
     flashcard.status = status;
     flashcard.lastReviewedAt = new Date();
-    
+
     // Calcular próxima revisão baseado no status
     const now = new Date();
     switch (status) {
