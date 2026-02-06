@@ -52,6 +52,12 @@ export class User {
   @Column({ type: 'timestamp', nullable: true, name: 'free_simulado_used_at' })
   freeSimuladoUsedAt?: Date;
 
+  @Column({ type: 'date', nullable: true, name: 'last_flashcard_gen_date' })
+  lastFlashcardGenDate?: string;
+
+  @Column({ type: 'int', default: 0, name: 'flashcards_gen_count' })
+  flashcardsGenCount!: number;
+
   @Column({
     type: 'enum',
     enum: UserStatus,

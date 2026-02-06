@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { createPlan, generateWeekly, updatePerformance, getActivePlan, generateSimulado } from '../controllers/study-plan.controller';
+import { createPlan, generateWeekly, updatePerformance, getActivePlan, generateSimulado, chargeSimulado } from '../controllers/study-plan.controller';
 import { authenticate } from '../middlewares/auth.middleware';
 import { verifyPremium } from '../middlewares/premium.middleware';
 
@@ -8,8 +8,9 @@ const router = Router();
 // All study plan routes require authentication
 router.use(authenticate);
 
-// Simulado route (available to all authenticated users)
+// Simulado routes (available to all authenticated users)
 router.get('/simulado/:subject', generateSimulado);
+router.post('/simulado/charge', chargeSimulado);
 
 // Other study plan routes require premium status
 router.get('/', verifyPremium, getActivePlan);

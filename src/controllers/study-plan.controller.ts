@@ -78,7 +78,7 @@ export const generateSimulado = async (req: Request, res: Response) => {
             return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
         }
 
-        const creditCost = 12;
+        const creditCost = 1;
         const currentCredits = Number(existingUser.credits);
 
         const freeTrialAvailable = !existingUser.freeSimuladoUsed;
@@ -139,5 +139,38 @@ export const generateSimulado = async (req: Request, res: Response) => {
     } catch (error: any) {
         logger.error('Error generating simulado:', error);
         res.status(500).json({ success: false, message: error.message || 'Erro ao gerar simulado' });
+    }
+};
+
+export const chargeSimulado = async (req: Request, res: Response) => {
+    try {
+        const user = (req as any).user;
+        if (!user) return res.status(401).json({ success: false, message: 'Não autorizado' });
+
+        const userRepository = AppDataSource.getRepository(User);
+        const existingUser = await userRepository.findOne({ where: { id: user.id } });
+
+        if (!existingUser) return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
+
+        const creditCost = 1;
+        const currentCredits = Number(existingUser.credits);
+        const freeTrialAvailable = !existingUser.freeSimuladoUsed;
+
+        if (freeTrialAvailable) {
+            existingUser.freeSimuladoUsed = true;
+            existingUser.freeSimuladoUsedAt = new Date();
+            await userRepository.save(existingUser);
+            return res.status(200).json({ success: true, credits: existingUser.credits, freeTrialUsed: true });
+        } else {
+            if (currentCredits < creditCost) {
+                return res.status(403).json({ success: false, message: 'Créditos insuficientes', code: 'OUT_OF_CREDITS' });
+            }
+            existingUser.credits = Math.round((currentCredits - creditCost) * 100) / 100;
+            await userRepository.save(existingUser);
+            return res.status(200).json({ success: true, credits: existingUser.credits });
+        }
+    } catch (error: any) {
+        logger.error('Error charging simulado:', error);
+        res.status(500).json({ success: false, message: 'Erro ao processar cobrança' });
     }
 };
