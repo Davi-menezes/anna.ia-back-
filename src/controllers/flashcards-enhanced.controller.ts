@@ -6,7 +6,7 @@ import { logger } from '../utils/logger';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-1.5-flash-001';
+const GEMINI_MODEL = 'gemini-1.5-flash';
 
 export const generateFlashcards = async (req: Request, res: Response) => {
   try {
