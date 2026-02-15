@@ -56,7 +56,7 @@ export const generateFlashcards = async (req: Request, res: Response) => {
         temperature: 0.7,
         maxOutputTokens: 2000,
       }
-    });
+    }, { apiVersion: 'v1' });
 
     // Construção do Prompt Avançado
     let prompt = '';
