@@ -3,10 +3,35 @@ import { Flashcard } from '../entities/Flashcard';
 import { User } from '../entities/User';
 import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
-import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+
+// Direct REST v1 API call (avoids SDK compatibility issues)
+async function callGeminiV1(apiKey: string, model: string, prompt: string): Promise<string> {
+  const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: {
+        temperature: 0.7,
+        maxOutputTokens: 2000,
+      }
+    })
+  });
+
+  const raw = await response.text();
+  if (!response.ok) {
+    throw new Error(`Gemini v1 error (${response.status}): ${raw}`);
+  }
+
+  const data = JSON.parse(raw);
+  const text = data?.candidates?.[0]?.content?.parts?.map((p: any) => p.text).filter(Boolean).join('') || '';
+  return text;
+}
 
 export const generateFlashcards = async (req: Request, res: Response) => {
   try {
@@ -47,17 +72,6 @@ export const generateFlashcards = async (req: Request, res: Response) => {
       });
     }
 
-    // Configurar Gemini SDK
-    const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
-    const model = genAI.getGenerativeModel({
-      model: GEMINI_MODEL,
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.7,
-        maxOutputTokens: 2000,
-      }
-    }, { apiVersion: 'v1' });
-
     // Construção do Prompt Avançado
     let prompt = '';
 
@@ -65,9 +79,9 @@ export const generateFlashcards = async (req: Request, res: Response) => {
       // Modo Novo: Inputs Mistos
       prompt = `Gere exatamente ${flashcardRequests.length} flashcards de estudo seguindo estritamente esta lista de tópicos:\n`;
 
-      flashcardRequests.forEach((req: any, index: number) => {
-        const subjectText = req.subject ? `Matéria: "${req.subject}"` : 'Matéria: Variedades/Curiosidades Gerais (Aleatório)';
-        const topicText = req.topic ? `, Tópico: "${req.topic}"` : '';
+      flashcardRequests.forEach((r: any, index: number) => {
+        const subjectText = r.subject ? `Matéria: "${r.subject}"` : 'Matéria: Variedades/Curiosidades Gerais (Aleatório)';
+        const topicText = r.topic ? `, Tópico: "${r.topic}"` : '';
         prompt += `${index + 1}. ${subjectText}${topicText}\n`;
       });
 
@@ -89,8 +103,7 @@ export const generateFlashcards = async (req: Request, res: Response) => {
 
     logger.info(`Gerando flashcards para usuário ${user.id} (Model: ${GEMINI_MODEL})`);
 
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
+    const text = await callGeminiV1(GEMINI_API_KEY, GEMINI_MODEL, prompt);
 
     if (!text) {
       throw new Error('Resposta vazia da Gemini API');
