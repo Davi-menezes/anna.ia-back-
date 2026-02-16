@@ -33,6 +33,49 @@ async function callGeminiV1(apiKey: string, model: string, prompt: string): Prom
   return text;
 }
 
+async function listGeminiV1Models(apiKey: string): Promise<Array<{ name?: string; supportedGenerationMethods?: string[] }>> {
+  const url = `https://generativelanguage.googleapis.com/v1/models?key=${encodeURIComponent(apiKey)}`;
+  const res = await fetch(url, { method: 'GET' });
+  const raw = await res.text();
+  if (!res.ok) {
+    throw new Error(`Gemini v1 listModels error (${res.status}): ${raw}`);
+  }
+  const data = JSON.parse(raw);
+  return Array.isArray(data?.models) ? data.models : [];
+}
+
+function pickGeminiV1Model(models: Array<{ name?: string; supportedGenerationMethods?: string[] }>): string {
+  const supported = models
+    .map(m => ({
+      name: (m.name || '').replace(/^models\//, ''),
+      methods: m.supportedGenerationMethods || [],
+    }))
+    .filter(m => m.name && m.methods.includes('generateContent'))
+    .map(m => m.name);
+
+  const preferred = supported.find(n => n.includes('flash')) || supported[0];
+  if (!preferred) {
+    throw new Error('Gemini v1: nenhum modelo com generateContent encontrado.');
+  }
+  return preferred;
+}
+
+async function callGeminiV1AutoModel(apiKey: string, model: string, prompt: string): Promise<string> {
+  try {
+    return await callGeminiV1(apiKey, model, prompt);
+  } catch (err: any) {
+    const msg = String(err?.message || err);
+    if (!msg.includes('Gemini v1 error (404)')) {
+      throw err;
+    }
+    logger.warn(`Flashcards: model ${model} not found. Attempting ListModels fallback.`);
+    const models = await listGeminiV1Models(apiKey);
+    const fallbackModel = pickGeminiV1Model(models);
+    logger.info(`Flashcards: using fallback model: ${fallbackModel}`);
+    return await callGeminiV1(apiKey, fallbackModel, prompt);
+  }
+}
+
 export const generateFlashcards = async (req: Request, res: Response) => {
   try {
     // Agora aceita um array de requests específicos ou usa o fallback antigo
@@ -103,7 +146,7 @@ export const generateFlashcards = async (req: Request, res: Response) => {
 
     logger.info(`Gerando flashcards para usuário ${user.id} (Model: ${GEMINI_MODEL})`);
 
-    const text = await callGeminiV1(GEMINI_API_KEY, GEMINI_MODEL, prompt);
+    const text = await callGeminiV1AutoModel(GEMINI_API_KEY, GEMINI_MODEL, prompt);
 
     if (!text) {
       throw new Error('Resposta vazia da Gemini API');
