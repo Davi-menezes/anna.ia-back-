@@ -5,7 +5,7 @@ import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 export const generateWeeklyStudyPlan = async (req: Request, res: Response) => {
   try {
@@ -22,7 +22,7 @@ export const generateWeeklyStudyPlan = async (req: Request, res: Response) => {
     // VERIFICAR CRÉDITOS - PLANO DE ESTUDOS CUSTA 2 CRÉDITOS
     const userRepository = AppDataSource.getRepository(User);
     const currentUser = await userRepository.findOneBy({ id: user.id });
-    
+
     if (!currentUser || currentUser.credits < 2) {
       return res.status(400).json({
         success: false,
@@ -125,7 +125,7 @@ export const updateStudyProgress = async (req: Request, res: Response) => {
     const user = req.user as any;
 
     const studyPlanRepository = AppDataSource.getRepository(StudyPlan);
-    
+
     const plan = await studyPlanRepository.findOne({
       where: { id: planId, user: { id: user.id } }
     });

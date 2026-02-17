@@ -4,7 +4,7 @@ import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = 'gemini-1.5-flash';
+const GEMINI_MODEL = 'gemini-2.0-flash';
 
 // CUSTO ESTIMADO CHAT:
 // Gemini 1.5 Flash: ~$0.00075 por 1.000 tokens (input)
@@ -81,7 +81,7 @@ export const generateChatResponse = async (req: Request, res: Response) => {
             threshold: "BLOCK_MEDIUM_AND_ABOVE"
           },
           {
-            category: "HARM_CATEGORY_HATE_SPEECH", 
+            category: "HARM_CATEGORY_HATE_SPEECH",
             threshold: "BLOCK_MEDIUM_AND_ABOVE"
           },
           {

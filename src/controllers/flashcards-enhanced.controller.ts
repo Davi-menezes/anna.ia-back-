@@ -5,7 +5,7 @@ import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 // Direct REST v1 API call (avoids SDK compatibility issues)
 async function callGeminiV1(apiKey: string, model: string, prompt: string): Promise<string> {

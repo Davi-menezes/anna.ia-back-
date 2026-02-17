@@ -89,7 +89,7 @@ export function createApp(): Application {
       success: true,
       gemini: {
         mode: 'rest_v1',
-        model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
+        model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
         apiKeyPresent: !!config.gemini.apiKey,
       },
     });

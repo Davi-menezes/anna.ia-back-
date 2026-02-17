@@ -5,7 +5,7 @@ import { ChatMessage } from '../entities/ChatMessage';
 import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 const CHAT_MAX_HISTORY_MESSAGES = Number(process.env.CHAT_MAX_HISTORY_MESSAGES || 8);
 const CHAT_MAX_PROMPT_CHARS = Number(process.env.CHAT_MAX_PROMPT_CHARS || 4000);

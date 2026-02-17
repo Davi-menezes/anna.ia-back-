@@ -7,7 +7,7 @@ import { User } from '../entities/User';
 import { ChatMessage } from '../entities/ChatMessage';
 import { logger } from '../utils/logger';
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
 const SIMULADO_MAX_OUTPUT_TOKENS = Number(process.env.SIMULADO_MAX_OUTPUT_TOKENS || 3500);
 const SIMULADO_TEMPERATURE = Number(process.env.SIMULADO_TEMPERATURE || 0.7);
@@ -308,7 +308,7 @@ export class StudyPlanService {
 
             // Try multiple JSON extraction strategies
             let jsonStr = text;
-            
+
             // Strategy 1: Look for JSON array
             const arrayMatch = text.match(/\[[\s\S]*\]/);
             if (arrayMatch) {
@@ -352,7 +352,7 @@ export class StudyPlanService {
             return questionsWithIds;
         } catch (error: any) {
             logger.error('Erro ao gerar simulado com Gemini:', error);
-            
+
             throw new Error('Não conseguimos gerar seu simulado no momento. Tente novamente.');
         }
     }
