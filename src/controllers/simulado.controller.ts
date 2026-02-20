@@ -71,17 +71,11 @@ export const generateSimulado = async (req: Request, res: Response) => {
 
     res.json({
       success: true,
-      data: {
-        simulado,
-        subject,
-        difficulty,
-        totalQuestions: questions.length,
-        creditsRemaining: currentUser.credits - 1,
-        costInfo: {
-          creditsUsed: 1,
-          creditsRemaining: currentUser.credits - 1
-        }
-      }
+      data: simulado,
+      subject,
+      difficulty,
+      totalQuestions: questions.length,
+      creditsRemaining: currentUser.credits - 1
     });
 
   } catch (error) {

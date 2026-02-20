@@ -116,9 +116,10 @@ export const generateSimulado = async (req: Request, res: Response) => {
         try {
             logger.info(`Calling generateSimulado service for subject: ${subject}`);
             const questions = await studyPlanService.generateSimulado(subject);
-            logger.info(`Successfully generated ${questions.length} questions for ${subject}`);
+            logger.info(`Successfully generated ${questions.length} questions for ${subject}, sending response. First question: ${JSON.stringify(questions[0])}`);
             return res.status(200).json({ success: true, data: questions, credits: existingUser.credits });
         } catch (genErr: any) {
+            logger.error(`Error generating simulado in service: ${genErr.message}`, genErr);
             // Refund on failure
             logger.error('Error generating simulado, refunding credits:', genErr);
             if (charged) {
