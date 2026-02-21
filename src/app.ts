@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
 import passport from 'passport';
+import rateLimit from 'express-rate-limit';
 import { config } from './config/config';
 import { routeNotFound } from './middlewares/route-not-found';
 import { errorHandler } from './middlewares/error-handler';
@@ -79,6 +80,34 @@ export function createApp(): Application {
     next();
   });
 
+  // Rate limiting para Chat (GEMINI) - 15 requisições por minuto por IP
+  const chatLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minuto
+    max: 15,
+    message: {
+      success: false,
+      message: 'Muitas requisições no chat. Tente novamente em alguns segundos.',
+      code: 'RATE_LIMIT_EXCEEDED',
+      retryAfter: 60
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  // Rate limiting para Flashcards - 10 requisições por minuto por IP
+  const flashcardsLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minuto
+    max: 10,
+    message: {
+      success: false,
+      message: 'Muitas requisições para gerar flashcards. Tente novamente em alguns segundos.',
+      code: 'RATE_LIMIT_EXCEEDED',
+      retryAfter: 60
+    },
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
   // Health check endpoint
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
@@ -108,10 +137,16 @@ export function createApp(): Application {
   // API routes
   app.use(`${config.apiPrefix}/auth`, authRoutes);
   app.use(`${config.apiPrefix}/users`, userRoutes);
-  app.use(`${config.apiPrefix}/gemini`, geminiRoutes);
+  
+  // Aplicar rate limiting nas rotas do chat (gemini)
+  app.use(`${config.apiPrefix}/gemini`, chatLimiter, geminiRoutes);
+  
   app.use(`${config.apiPrefix}/study-plans`, studyPlanRoutes);
   app.use(`${config.apiPrefix}/flashcards`, flashcardsRoutes);
-  app.use(`${config.apiPrefix}/flashcards-enhanced`, flashcardsEnhancedRoutes);
+  
+  // Aplicar rate limiting nas rotas de flashcards enhanced
+  app.use(`${config.apiPrefix}/flashcards-enhanced`, flashcardsLimiter, flashcardsEnhancedRoutes);
+  
   app.use(`${config.apiPrefix}/study-plan-enhanced`, studyPlanEnhancedRoutes);
   app.use(`${config.apiPrefix}/question-goals`, questionGoalsRoutes);
   app.use(`${config.apiPrefix}/simulado`, simuladoRoutes);
