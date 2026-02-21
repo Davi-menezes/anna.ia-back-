@@ -86,21 +86,37 @@ async function generateWithGeminiV1AutoModel(params: {
     model: string;
     history?: Array<{ role: 'user' | 'model'; content: string }>;
     prompt: string;
-}): Promise<string> {
+}, attempt: number = 0): Promise<string> {
     try {
         return await generateWithGeminiV1(params);
     } catch (err: any) {
         const msg = String(err?.message || err);
-        if (!msg.includes('Gemini v1 error (404)')) {
-            throw err;
+        const isQuotaError = msg.includes('GEMINI_QUOTA_EXCEEDED') || msg.includes('429');
+        const isNotFoundError = msg.includes('Gemini v1 error (404)');
+
+        if (isQuotaError && attempt < 2) {
+            const delay = 2000 * (attempt + 1);
+            logger.warn(`Gemini quota exceeded (429). Retrying in ${delay}ms... (attempt ${attempt + 1})`);
+            await new Promise(resolve => setTimeout(resolve, delay));
+            return await generateWithGeminiV1AutoModel(params, attempt + 1);
         }
 
-        logger.warn(`Gemini model not found: ${params.model}. Attempting ListModels fallback.`);
-        const models = await listGeminiV1Models(params.apiKey);
-        const fallbackModel = pickGeminiV1Model(models);
+        if (isNotFoundError || (isQuotaError && params.model !== 'gemini-1.5-flash')) {
+            const fallbackModel = isNotFoundError ? null : 'gemini-1.5-flash';
 
-        logger.warn(`Gemini fallback model selected: ${fallbackModel}`);
-        return await generateWithGeminiV1({ ...params, model: fallbackModel });
+            if (isNotFoundError) {
+                logger.warn(`Gemini model not found: ${params.model}. Attempting ListModels fallback.`);
+                const models = await listGeminiV1Models(params.apiKey);
+                const selectedFallback = pickGeminiV1Model(models);
+                logger.warn(`Gemini fallback model selected: ${selectedFallback}`);
+                return await generateWithGeminiV1({ ...params, model: selectedFallback });
+            } else {
+                logger.warn(`Gemini quota exceeded for ${params.model}. Falling back to gemini-1.5-flash.`);
+                return await generateWithGeminiV1AutoModel({ ...params, model: 'gemini-1.5-flash' }, 0);
+            }
+        }
+
+        throw err;
     }
 }
 

@@ -72,19 +72,35 @@ function pickGeminiV1Model(models: Array<{ name?: string; supportedGenerationMet
   return preferred;
 }
 
-async function callGeminiV1AutoModel(apiKey: string, model: string, prompt: string): Promise<string> {
+async function callGeminiV1AutoModel(apiKey: string, model: string, prompt: string, attempt: number = 0): Promise<string> {
   try {
     return await callGeminiV1(apiKey, model, prompt);
   } catch (err: any) {
     const msg = String(err?.message || err);
-    if (!msg.includes('Gemini v1 error (404)')) {
-      throw err;
+    const isQuotaError = msg.includes('GEMINI_QUOTA_EXCEEDED') || msg.includes('429');
+    const isNotFoundError = msg.includes('Gemini v1 error (404)');
+
+    if (isQuotaError && attempt < 2) {
+      const delay = 2000 * (attempt + 1);
+      logger.warn(`Flashcards: Gemini quota exceeded (429). Retrying in ${delay}ms... (attempt ${attempt + 1})`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return await callGeminiV1AutoModel(apiKey, model, prompt, attempt + 1);
     }
-    logger.warn(`Flashcards: model ${model} not found. Attempting ListModels fallback.`);
-    const models = await listGeminiV1Models(apiKey);
-    const fallbackModel = pickGeminiV1Model(models);
-    logger.info(`Flashcards: using fallback model: ${fallbackModel}`);
-    return await callGeminiV1(apiKey, fallbackModel, prompt);
+
+    if (isNotFoundError || (isQuotaError && model !== 'gemini-1.5-flash')) {
+      if (isNotFoundError) {
+        logger.warn(`Flashcards: model ${model} not found. Attempting ListModels fallback.`);
+        const models = await listGeminiV1Models(apiKey);
+        const selectedFallback = pickGeminiV1Model(models);
+        logger.info(`Flashcards: using fallback model: ${selectedFallback}`);
+        return await callGeminiV1(apiKey, selectedFallback, prompt);
+      } else {
+        logger.warn(`Flashcards: quota exceeded for ${model}. Falling back to gemini-1.5-flash.`);
+        return await callGeminiV1AutoModel(apiKey, 'gemini-1.5-flash', prompt, 0);
+      }
+    }
+
+    throw err;
   }
 }
 
@@ -234,7 +250,7 @@ export const generateFlashcards = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     logger.error('Erro ao gerar flashcards:', error);
-    
+
     // Check for quota exceeded error
     const errorMessage = error.message || '';
     if (errorMessage.includes('GEMINI_QUOTA_EXCEEDED') || errorMessage.includes('429')) {
@@ -245,7 +261,7 @@ export const generateFlashcards = async (req: Request, res: Response) => {
         retryAfter: 60 // Suggest retry after 60 seconds
       });
     }
-    
+
     res.status(500).json({
       success: false,
       message: error.message || 'Erro interno ao gerar flashcards'
