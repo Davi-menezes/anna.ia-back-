@@ -70,6 +70,9 @@ async function generateWithGeminiV1(params: {
 
     const raw = await res.text();
     if (!res.ok) {
+        if (res.status === 429) {
+            throw new Error(`GEMINI_QUOTA_EXCEEDED: ${raw}`);
+        }
         throw new Error(`Gemini v1 error (${res.status}): ${raw}`);
     }
 
@@ -239,11 +242,13 @@ MENSAGEM DE RECUSA PADRÃO:
             throw respError;
         }
     } catch (error: any) {
-        logger.error('Error in Gemini controller:', error);
-
-        // Log more details if it's a Gemini error
-        if (error.response) {
-            logger.error('Gemini error response data:', JSON.stringify(error.response.data));
+        const errorMessage = error.message || '';
+        if (errorMessage.includes('GEMINI_QUOTA_EXCEEDED') || errorMessage.includes('429')) {
+            return res.status(429).json({
+                success: false,
+                message: 'O serviço de IA está temporariamente indisponível devido a alta demanda (limite de cota excedido). Por favor, tente novamente em alguns minutos.',
+                code: 'GEMINI_QUOTA_EXCEEDED'
+            });
         }
 
         res.status(500).json({
