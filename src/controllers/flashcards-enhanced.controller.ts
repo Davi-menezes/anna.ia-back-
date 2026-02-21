@@ -25,6 +25,18 @@ async function callGeminiV1(apiKey: string, model: string, prompt: string): Prom
 
   const raw = await response.text();
   if (!response.ok) {
+    // Parse error to check for 429 (quota exceeded)
+    try {
+      const errorData = JSON.parse(raw);
+      if (response.status === 429 || errorData?.error?.code === 429) {
+        throw new Error(`GEMINI_QUOTA_EXCEEDED: ${raw}`);
+      }
+    } catch (e) {
+      // If it's already our custom error, rethrow
+      if ((e as Error).message.startsWith('GEMINI_QUOTA_EXCEEDED')) {
+        throw e;
+      }
+    }
     throw new Error(`Gemini v1 error (${response.status}): ${raw}`);
   }
 
@@ -222,6 +234,18 @@ export const generateFlashcards = async (req: Request, res: Response) => {
 
   } catch (error: any) {
     logger.error('Erro ao gerar flashcards:', error);
+    
+    // Check for quota exceeded error
+    const errorMessage = error.message || '';
+    if (errorMessage.includes('GEMINI_QUOTA_EXCEEDED') || errorMessage.includes('429')) {
+      return res.status(429).json({
+        success: false,
+        message: 'O serviço de IA está temporariamente indisponível devido a alta demanda. Por favor, tente novamente em alguns minutos.',
+        code: 'GEMINI_QUOTA_EXCEEDED',
+        retryAfter: 60 // Suggest retry after 60 seconds
+      });
+    }
+    
     res.status(500).json({
       success: false,
       message: error.message || 'Erro interno ao gerar flashcards'
