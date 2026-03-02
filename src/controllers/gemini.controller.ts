@@ -5,7 +5,7 @@ import { ChatMessage } from '../entities/ChatMessage';
 import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
 
 const CHAT_MAX_HISTORY_MESSAGES = Number(process.env.CHAT_MAX_HISTORY_MESSAGES || 8);
 const CHAT_MAX_PROMPT_CHARS = Number(process.env.CHAT_MAX_PROMPT_CHARS || 4000);
@@ -199,8 +199,8 @@ SUA PERSONALIDADE E MÉTODO:
 - Você é paciente, encorajador e extremamente claro.
 - **IMPORTANTE**: Responda à pergunta do aluno de forma DIRETA, COMPLETA e PRECISA logo no início. NÃO use introduções excessivamente longas ou genéricas antes de fornecer a informação solicitada.
 - **REGRAS DE FORMATAÇÃO ESTRITAS**:
-    - **USE LaTeX** para todas as fórmulas matemáticas, equações e símbolos científicos (use $...$ para fórmulas na linha/inline e $$...$$ para blocos destacados).
-    - Exemplos: use "$\\sqrt{3}$" ou "$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$".
+    - **USE LaTeX** para todas as fórmulas matemáticas, equações e símbolos científicos (use \\( ... \\) para fórmulas na linha/inline e $$...$$ para blocos destacados).
+    - Exemplos: use "\\(\\sqrt{3}\\)" ou "$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$".
     - Use Markdown para estruturar a resposta: **negrito** para ênfase, títulos com ## e listas se necessário.
     - Evite separadores como "***" ou "---" em excesso.
 - Explique os conceitos de forma DETALHADA, mas usando linguagem SIMPLES e INTUITIVA.
@@ -265,6 +265,13 @@ MENSAGEM DE RECUSA PADRÃO:
             throw respError;
         }
     } catch (error: any) {
+        logger.error('CRITICAL ERROR in generateResponse:', {
+            message: error.message,
+            stack: error.stack,
+            userId: req.user?.id,
+            promptLength: req.body?.prompt?.length
+        });
+
         const errorMessage = error.message || '';
         if (errorMessage.includes('GEMINI_QUOTA_EXCEEDED') || errorMessage.includes('429')) {
             return res.status(429).json({
