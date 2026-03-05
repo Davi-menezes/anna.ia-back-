@@ -38,21 +38,24 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
     logger.error('Erro ao solicitar redefinição de senha:', error);
 
     // Detecta limitação do Resend em modo de teste (domínio não verificado)
+    const errorMsg = String(error?.message || '').toLowerCase();
     const isResendTestRestriction =
-      error?.message?.includes('testing emails to your own email address') ||
-      error?.message?.includes('verify a domain');
+      errorMsg.includes('testing emails to your own email address') ||
+      errorMsg.includes('only send testing emails') ||
+      errorMsg.includes('verify a domain at resend') ||
+      errorMsg.includes('resend.com/domains');
 
     if (isResendTestRestriction) {
       return res.status(503).json({
         success: false,
         code: 'EMAIL_SERVICE_RESTRICTED',
-        message: 'O serviço de e-mail está em manutenção e ainda não está disponível para todos os endereços. Por favor, faça login com o Google ou tente novamente mais tarde.'
+        message: 'O serviço de e-mail está em configuração. Por favor, faça login com sua conta Google ou entre em contato com o suporte.'
       });
     }
 
     res.status(500).json({
       success: false,
-      message: 'Não foi possível enviar o e-mail de recuperação. Verifique se o endereço está correto e tente novamente.'
+      message: 'Não foi possível enviar o e-mail de recuperação. Tente novamente em alguns instantes.'
     });
   }
 };
