@@ -68,8 +68,9 @@ export function createApp(): Application {
   // Middleware para Webhook do Stripe (precisa do corpo raw para verificar assinatura)
   app.use('/api/payments/stripe-webhook', express.raw({ type: 'application/json' }));
 
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
+  // Limite maior necessário para envio de imagens em base64 via chat (até 7 MB → ~9,3 MB em base64)
+  app.use(express.json({ limit: '15mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '15mb' }));
 
   // Inicializa o Passport
   app.use(passport.initialize());
