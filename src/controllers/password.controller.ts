@@ -32,13 +32,27 @@ export const requestPasswordReset = async (req: Request, res: Response) => {
 
     res.status(200).json({
       success: true,
-      message: 'Um e-mail com as instruções para redefinir sua senha foi enviado.'
+      message: 'Um e-mail com as instruções para redefinir sua senha foi enviado. Verifique sua caixa de entrada (e a pasta de spam).'
     });
-  } catch (error) {
+  } catch (error: any) {
     logger.error('Erro ao solicitar redefinição de senha:', error);
+
+    // Detecta limitação do Resend em modo de teste (domínio não verificado)
+    const isResendTestRestriction =
+      error?.message?.includes('testing emails to your own email address') ||
+      error?.message?.includes('verify a domain');
+
+    if (isResendTestRestriction) {
+      return res.status(503).json({
+        success: false,
+        code: 'EMAIL_SERVICE_RESTRICTED',
+        message: 'O serviço de e-mail está em manutenção e ainda não está disponível para todos os endereços. Por favor, faça login com o Google ou tente novamente mais tarde.'
+      });
+    }
+
     res.status(500).json({
       success: false,
-      message: 'Ocorreu um erro ao processar sua solicitação.'
+      message: 'Não foi possível enviar o e-mail de recuperação. Verifique se o endereço está correto e tente novamente.'
     });
   }
 };
