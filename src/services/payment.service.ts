@@ -34,9 +34,8 @@ function calcularCreditos(valor: number): number {
 
 export const handleStripeWebhook = async (event: Stripe.Event) => {
   const logger = require('../utils/logger').logger;
-  // ... (existing stripe logic)
   try {
-    logger.info('Processing Stripe webhook event', {
+    logger.info('Processando evento webhook do Stripe', {
       type: event.type,
       id: event.id
     });
@@ -44,7 +43,7 @@ export const handleStripeWebhook = async (event: Stripe.Event) => {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as Stripe.Checkout.Session;
       const userId = session.client_reference_id;
-      const amount = (session.amount_total || 0) / 100; // Stripe uses cents
+      const amount = (session.amount_total || 0) / 100; // Stripe trabalha em centavos
 
       if (!userId) {
         return { success: false, error: 'ID do usuário não encontrado na sessão' };
@@ -73,7 +72,7 @@ export const handleStripeWebhook = async (event: Stripe.Event) => {
 export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
   const logger = require('../utils/logger').logger;
   try {
-    logger.info('Processing Mercado Pago webhook', { topic, id });
+    logger.info('Processando webhook do Mercado Pago', { topic, id });
 
     let merchantOrder;
 
@@ -108,7 +107,7 @@ export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
         user.credits = 500;
         await userRepository.save(user);
 
-        logger.info('User upgraded to PREMIUM via Subscription', {
+        logger.info('Usuário promovido a PREMIUM via Assinatura', {
           userId,
           subscriptionId: id,
           previousCredits
@@ -137,7 +136,7 @@ export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
       const userId = merchantOrder.external_reference;
 
       if (!userId) {
-        logger.error('No external_reference (userId) found in Mercado Pago order', { orderId: merchantOrder.id });
+        logger.error('external_reference (userId) não encontrado na ordem do Mercado Pago', { orderId: merchantOrder.id });
         return { success: false, error: 'ID do usuário não encontrado na ordem' };
       }
 
@@ -145,7 +144,7 @@ export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
       const user = await userRepository.findOne({ where: { id: userId } });
 
       if (!user) {
-        logger.error('User not found for Mercado Pago payment', { userId, orderId: merchantOrder.id });
+        logger.error('Usuário não encontrado para pagamento do Mercado Pago', { userId, orderId: merchantOrder.id });
         return { success: false, error: 'Usuário não encontrado' };
       }
 
@@ -155,7 +154,7 @@ export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
       user.credits = Math.round((previousCredits + creditsToAdd) * 100) / 100;
       await userRepository.save(user);
 
-      logger.info('Credits added to user via Mercado Pago', {
+      logger.info('Créditos adicionados ao usuário via Mercado Pago', {
         userId,
         amount: paidAmount,
         creditsAdded: creditsToAdd,
@@ -172,7 +171,7 @@ export const handleMercadoPagoWebhook = async (topic: string, id: string) => {
 
     return { success: true, message: 'Pagamento pendente ou parcial' };
   } catch (error) {
-    logger.error('Error processing Mercado Pago webhook', {
+    logger.error('Erro ao processar webhook do Mercado Pago', {
       error: error instanceof Error ? error.message : String(error)
     });
     return { success: false, error: 'Erro ao processar webhook do Mercado Pago' };

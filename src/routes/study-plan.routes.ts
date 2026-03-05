@@ -5,14 +5,14 @@ import { verifyPremium } from '../middlewares/premium.middleware';
 
 const router = Router();
 
-// All study plan routes require authentication
+// Todas as rotas de plano de estudos exigem autenticação
 router.use(authenticate);
 
-// Simulado routes (available to all authenticated users)
+// Rotas de simulado (disponíveis para todos os usuários autenticados)
 router.get('/simulado/:subject', generateSimulado);
 router.post('/simulado/charge', chargeSimulado);
 
-// Other study plan routes require premium status
+// Demais rotas exigem status premium
 router.get('/', verifyPremium, getActivePlan);
 router.post('/', verifyPremium, createPlan);
 router.post('/:planId/generate', verifyPremium, generateWeekly);

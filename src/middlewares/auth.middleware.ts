@@ -7,7 +7,7 @@ import { config } from '../config/config';
 import AppDataSource from '../config/data-source';
 
 interface UserResponse {
-  id: string | any; // Usando 'any' temporariamente para evitar erros de tipo
+  id: string | any; // 'any' temporário para compatibilidade de tipo
   name: string;
   email: string;
   profilePicture?: string;
@@ -48,9 +48,9 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
       });
     }
 
-    // Add user to request object
+    // Adiciona o usuário ao objeto da requisição
     const userResponse: UserResponse = {
-      id: (user as any)._id || user.id, // Usando type assertion temporariamente
+      id: (user as any)._id || user.id, // Type assertion temporária
       name: user.name,
       email: user.email,
       profilePicture: user.profilePicture,
@@ -58,7 +58,7 @@ export const verifyToken = async (req: Request, res: Response, next: NextFunctio
       createdAt: user.createdAt,
       updatedAt: user.updatedAt
     };
-    (req as any).user = userResponse; // Usando type assertion temporariamente
+    (req as any).user = userResponse; // Type assertion temporária
     next();
   } catch (err) {
     logger.error('Erro de autenticação:', err);

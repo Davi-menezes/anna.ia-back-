@@ -11,19 +11,19 @@ import { authenticate } from '../middlewares/auth.middleware';
 
 const router = Router();
 
-// Serve profile picture - Make this PUBLIC so standard <img> tags can load it
+// Rota pública para servir foto de perfil (necessário para tags <img> sem autenticação)
 router.get('/profile/picture/:userId', serveProfilePicture);
 
-// Apply authentication middleware to all other user routes
+// Aplica autenticação em todas as demais rotas de usuário
 router.use(authenticate);
 
-// Get user profile
+// Busca perfil do usuário autenticado
 router.get('/profile', getProfile);
 
-// Update user profile
+// Atualiza dados do perfil
 router.patch('/profile', updateProfile);
 
-// Update profile picture
+// Atualiza foto de perfil
 router.post(
   '/profile/picture',
   upload.single('profilePicture'),
@@ -31,9 +31,7 @@ router.post(
   updateProfilePicture
 );
 
-// Serve profile picture - (MOVED UP to be public)
-
-// Deduct credits
+// Deduz créditos do usuário
 router.post('/credits/deduct', deductCredits);
 
 export default router;

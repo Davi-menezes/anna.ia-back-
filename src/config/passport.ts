@@ -34,7 +34,7 @@ passport.use(
                     const googlePhoto = profile.photos?.[0]?.value;
                     if (googlePhoto) {
                         user.profilePicture = googlePhoto;
-                        user.googleId = profile.id; // Ensure googleId is also set
+                        user.googleId = profile.id; // Garante que o googleId também seja atualizado
                         await userRepository.save(user);
                         logger.info(`Updated Google photo for user ${email}: ${googlePhoto}`);
                     }
@@ -53,9 +53,9 @@ passport.use(
 
                 // Se não existir, cria um novo usuário
                 const newUser = userRepository.create({
-                    name: profile.displayName || 'Usuário Google', // Fallback para o nome
+                    name: profile.displayName || 'Usuário Google', // Nome de exibição do perfil Google
                     email: email,
-                    status: UserStatus.VERIFIED, // E-mail do Google já é verificado
+                    status: UserStatus.VERIFIED, // E-mail do Google já vem verificado
                     googleId: profile.id,
                     profilePicture: profile.photos?.[0]?.value || undefined
                 });

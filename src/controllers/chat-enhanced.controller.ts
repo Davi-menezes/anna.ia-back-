@@ -6,13 +6,13 @@ import { logger } from '../utils/logger';
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = 'gemini-2.0-flash';
 
-// CUSTO ESTIMADO CHAT:
-// Gemini 1.5 Flash: ~$0.00075 por 1.000 tokens (input)
-// Gemini 1.5 Flash: ~$0.0015 por 1.000 tokens (output)
+// CUSTO ESTIMADO DE CHAT:
+// Gemini 1.5 Flash: ~$0,00075 por 1.000 tokens (entrada)
+// Gemini 1.5 Flash: ~$0,0015 por 1.000 tokens (saída)
 // Prompt médio: ~300 tokens
 // Resposta média: ~800 tokens
 // Histórico: ~400 tokens (8 mensagens anteriores)
-// Custo por conversa: ~$0.002
+// Custo por conversa: ~$0,002
 
 export const generateChatResponse = async (req: Request, res: Response) => {
   try {
@@ -125,9 +125,9 @@ export const generateChatResponse = async (req: Request, res: Response) => {
           creditsUsed: 1,
           creditsRemaining: currentUser.credits - 1,
           realCost: '$0.002',
-          inputTokens: 700, // estimado
-          outputTokens: 800, // estimado
-          totalTokens: 1500, // estimado
+          inputTokens: 700, // estimativa
+          outputTokens: 800, // estimativa
+          totalTokens: 1500, // estimativa
           costPerToken: '$0.0000013',
           viability: 'EXTREMELY LUCRATIVO'
         }

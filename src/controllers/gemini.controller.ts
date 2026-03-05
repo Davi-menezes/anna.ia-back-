@@ -176,7 +176,7 @@ export const generateResponse = async (req: Request, res: Response) => {
 
         logger.info(`Credits check for user ${user.id}: current=${currentCredits}, cost=${creditCost}`);
 
-        // All users, including premium, consume credits now
+        // Todos os usuários, incluindo premium, consomem créditos
         if (currentCredits < creditCost) {
             logger.warn(`User ${user.id} out of credits: ${currentCredits} < ${creditCost}`);
             return res.status(403).json({
@@ -186,7 +186,7 @@ export const generateResponse = async (req: Request, res: Response) => {
             });
         }
 
-        // Deduct credits before calling AI
+        // Deduz créditos antes de chamar a IA
         const newCredits = currentCredits - creditCost;
         existingUser.credits = Math.round(newCredits * 100) / 100;
         await userRepository.save(existingUser);
@@ -248,10 +248,10 @@ MENSAGEM DE RECUSA PADRÃO:
                 credits: existingUser.credits
             });
         } catch (respError: any) {
-            // REFUND CREDITS if it's a transient failure
-            logger.error('Error during Gemini generation, refunding credits:', respError);
+        // Estorna créditos em caso de falha transitória
+        logger.error('Erro na geração Gemini, estornando créditos:', respError);
 
-            existingUser.credits = currentCredits; // Restore original credits
+        existingUser.credits = currentCredits; // Restaura os créditos originais
             await userRepository.save(existingUser);
 
             if (respError.message?.includes('SAFETY')) {
@@ -273,6 +273,14 @@ MENSAGEM DE RECUSA PADRÃO:
         });
 
         const errorMessage = error.message || '';
+        if (errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('API key not valid')) {
+            return res.status(503).json({
+                success: false,
+                message: 'Configuração da IA inválida no servidor. Verifique a GEMINI_API_KEY no ambiente de produção.',
+                code: 'GEMINI_API_KEY_INVALID'
+            });
+        }
+
         if (errorMessage.includes('GEMINI_QUOTA_EXCEEDED') || errorMessage.includes('429')) {
             return res.status(429).json({
                 success: false,

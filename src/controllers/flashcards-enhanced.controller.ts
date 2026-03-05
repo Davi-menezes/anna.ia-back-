@@ -3,11 +3,11 @@ import { Flashcard } from '../entities/Flashcard';
 import { User } from '../entities/User';
 import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
+import { config } from '../config/config';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
 
-// Direct REST v1 API call (avoids SDK compatibility issues)
+// Chamada direta à API REST v1 do Gemini (evita problemas de compatibilidade com o SDK)
 async function callGeminiV1(apiKey: string, model: string, prompt: string): Promise<string> {
   const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
@@ -25,14 +25,14 @@ async function callGeminiV1(apiKey: string, model: string, prompt: string): Prom
 
   const raw = await response.text();
   if (!response.ok) {
-    // Parse error to check for 429 (quota exceeded)
+    // Verifica se o erro é 429 (cota excedida)
     try {
       const errorData = JSON.parse(raw);
       if (response.status === 429 || errorData?.error?.code === 429) {
         throw new Error(`GEMINI_QUOTA_EXCEEDED: ${raw}`);
       }
     } catch (e) {
-      // If it's already our custom error, rethrow
+      // Se já é nosso erro customizado, relança
       if ((e as Error).message.startsWith('GEMINI_QUOTA_EXCEEDED')) {
         throw e;
       }
@@ -114,7 +114,8 @@ export const generateFlashcards = async (req: Request, res: Response) => {
       return res.status(401).json({ success: false, message: 'Não autorizado' });
     }
 
-    if (!GEMINI_API_KEY) {
+    const geminiApiKey = config.gemini.apiKey;
+    if (!geminiApiKey) {
       return res.status(503).json({ success: false, message: 'Serviço de IA indisponível' });
     }
 
@@ -174,7 +175,7 @@ export const generateFlashcards = async (req: Request, res: Response) => {
 
     logger.info(`Gerando flashcards para usuário ${user.id} (Model: ${GEMINI_MODEL})`);
 
-    const text = await callGeminiV1AutoModel(GEMINI_API_KEY, GEMINI_MODEL, prompt);
+    const text = await callGeminiV1AutoModel(geminiApiKey, GEMINI_MODEL, prompt);
 
     if (!text) {
       throw new Error('Resposta vazia da Gemini API');
@@ -251,8 +252,16 @@ export const generateFlashcards = async (req: Request, res: Response) => {
   } catch (error: any) {
     logger.error('Erro ao gerar flashcards:', error);
 
-    // Check for quota exceeded error
+    // Verifica tipo de erro para retorno adequado
     const errorMessage = error.message || '';
+    if (errorMessage.includes('API_KEY_INVALID') || errorMessage.includes('API key not valid')) {
+      return res.status(503).json({
+        success: false,
+        message: 'Configuração da IA inválida no servidor. Verifique a GEMINI_API_KEY no ambiente de produção.',
+        code: 'GEMINI_API_KEY_INVALID'
+      });
+    }
+
     if (errorMessage.includes('GEMINI_QUOTA_EXCEEDED') || errorMessage.includes('429')) {
       return res.status(429).json({
         success: false,

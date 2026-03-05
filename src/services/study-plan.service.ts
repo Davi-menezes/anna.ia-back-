@@ -107,7 +107,7 @@ export class StudyPlanService {
         const user = await this.userRepository.findOneBy({ id: userId });
         if (!user) throw new Error('Usuário não encontrado');
 
-        // Delete existing plan if any (due to 1:1 constraint)
+        // Remove plano existente se houver (restrição 1:1)
         const existingPlan = await this.studyPlanRepository.findOne({
             where: { user: { id: userId } }
         });
@@ -123,7 +123,7 @@ export class StudyPlanService {
 
         const savedPlan = await this.studyPlanRepository.save(studyPlan);
 
-        // Initial subjects with level
+        // Cria as matérias iniciais com seus níveis de proficiência
         const subjects = data.subjects.map((s: any) => {
             const subject = new StudyPlanSubject();
             subject.studyPlan = savedPlan;
@@ -148,8 +148,8 @@ export class StudyPlanService {
 
         if (!plan) throw new Error('Plano de estudos não encontrado');
 
-        // Chat history is no longer used here to avoid dependency on a non-existent table
-        const chatContext = '';
+            // Histórico de chat não é mais utilizado aqui para evitar dependência de tabela inexistente
+            const chatContext = '';
 
         const prompt = `
       Você é a Anna, uma mentora de estudos altamente qualificada, empática e motivadora. 
@@ -191,7 +191,7 @@ export class StudyPlanService {
                 prompt
             });
 
-            // Extract JSON from response if needed (sometimes LLMs wrap in markdown)
+            // Extrai JSON da resposta (LLMs às vezes envolvem com blocos markdown)
             const jsonStr = text.match(/\{[\s\S]*\}/)?.[0] || text;
             const planContent = JSON.parse(jsonStr);
 
@@ -202,7 +202,7 @@ export class StudyPlanService {
             schedule.content = planContent;
             schedule.isActive = true;
 
-            // Deactivate previous active schedules
+            // Desativa os cronogramas semanais anteriores
             await this.scheduleRepository.update({ studyPlan: { id: studyPlanId }, isActive: true }, { isActive: false });
 
             return await this.scheduleRepository.save(schedule);
@@ -238,8 +238,7 @@ export class StudyPlanService {
         });
 
         if (plan && plan.schedules) {
-            // Sort schedules by date and find the active one
-            // TypeORM's relations are arrays, so we find the one where isActive is true
+            // Encontra o cronograma ativo (relações do TypeORM são arrays)
             (plan as any).activeSchedule = plan.schedules.find(s => s.isActive);
         }
 
@@ -309,31 +308,31 @@ export class StudyPlanService {
             // Try multiple JSON extraction strategies
             let jsonStr = text;
 
-            // Strategy 1: Look for JSON array
+            // Estratégia 1: busca array JSON
             const arrayMatch = text.match(/\[[\s\S]*\]/);
             if (arrayMatch) {
                 jsonStr = arrayMatch[0];
             } else {
-                // Strategy 2: Look for JSON object (in case it's wrapped)
+                // Estratégia 2: busca objeto JSON (caso esteja encapsulado)
                 const objectMatch = text.match(/\{[\s\S]*\}/);
                 if (objectMatch) {
                     jsonStr = objectMatch[0];
                 }
             }
 
-            // Clean common JSON issues
+            // Corrige problemas comuns de JSON gerado por LLMs
             jsonStr = jsonStr
-                .replace(/,\s*}/g, '}')  // Remove trailing commas
-                .replace(/,\s*]/g, ']')  // Remove trailing commas in arrays
-                .replace(/\\n/g, '\\\\n')  // Escape newlines
-                .replace(/\\"/g, '\\\\"')  // Escape quotes
+                .replace(/,\s*}/g, '}')  // Remove vírgulas extras antes de }
+                .replace(/,\s*]/g, ']')  // Remove vírgulas extras antes de ]
+                .replace(/\\n/g, '\\\\n')  // Escapa quebras de linha
+                .replace(/\\"/g, '\\\\"')  // Escapa aspas
                 .trim();
 
             logger.info(`Attempting to parse JSON, first 200 chars: ${jsonStr.substring(0, 200)}...`);
 
             const questions = JSON.parse(jsonStr);
 
-            // Validate 30 questions
+            // Valida que o simulado contém exatamente 30 questões
             if (!Array.isArray(questions) || questions.length !== 30) {
                 throw new Error(`Formato inválido: o simulado deve conter exatamente 30 questões. Recebido: ${Array.isArray(questions) ? questions.length : 'não é array'}`);
             }
@@ -343,7 +342,7 @@ export class StudyPlanService {
                 questions
             });
 
-            // Add IDs to the questions
+            // Adiciona IDs sequenciais às questões
             const questionsWithIds = questions.map((q: any, index: number) => ({
                 ...q,
                 id: index,

@@ -119,7 +119,7 @@ export const reviewFlashcard = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Flashcard não encontrado' });
     }
 
-    // Simple spaced repetition heuristic: quality 0-5 adjusts nextReviewAt.
+    // Heurística simples de repetição espaçada: qualidade 0-5 define o próximo intervalo de revisão.
     const q = Number(quality);
     const now = new Date();
     card.lastReviewedAt = now;

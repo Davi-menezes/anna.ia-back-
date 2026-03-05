@@ -16,10 +16,10 @@ export class StudyPlan {
     targetVestibular!: string;
 
     @Column({ type: 'integer' })
-    availableTimePerDay!: number; // in minutes
+    availableTimePerDay!: number; // em minutos
 
     @Column({ type: 'simple-array' })
-    studyDays!: string[]; // e.g., ['seg', 'ter', 'qua']
+    studyDays!: string[]; // ex.: ['seg', 'ter', 'qua']
 
     @OneToMany(() => StudyPlanSubject, (subject) => subject.studyPlan, { cascade: true })
     subjects!: StudyPlanSubject[];

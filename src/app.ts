@@ -19,17 +19,17 @@ import flashcardsEnhancedRoutes from './routes/flashcards-enhanced.routes';
 import studyPlanEnhancedRoutes from './routes/study-plan-enhanced.routes';
 import simuladoRoutes from './routes/simulado.routes';
 
-// Import Passport Configuration
+// Importa configuração do Passport
 import './config/passport';
 
 export function createApp(): Application {
   const app = express();
 
-  // Middleware
+  // Middlewares de segurança
   app.use(helmet({
     crossOriginResourcePolicy: { policy: "cross-origin" }
   }));
-  // CORS configuration
+  // Configuração de CORS
   const allowedOrigins = [
     'http://localhost:4200',
     'http://localhost:3000',
@@ -71,10 +71,10 @@ export function createApp(): Application {
   app.use(express.json());
   app.use(express.urlencoded({ extended: true }));
 
-  // Initialize Passport
+  // Inicializa o Passport
   app.use(passport.initialize());
 
-  // Logging middleware
+  // Middleware de log de requisições
   app.use((req, res, next) => {
     logger.info(`${req.method} ${req.path}`);
     next();
@@ -108,7 +108,7 @@ export function createApp(): Application {
     legacyHeaders: false,
   });
 
-  // Health check endpoint
+  // Endpoint de verificação de saúde do servidor
   app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
   });
@@ -124,17 +124,17 @@ export function createApp(): Application {
     });
   });
 
-  // Google OAuth Fail-safe Redirect (handles old URIs without /v1)
+  // Redirecionamento de segurança do OAuth Google (URIs antigas sem /v1)
   app.get('/api/auth/google/callback', (req, res) => {
-    logger.info('Redirecting old OAuth callback to v1');
+    logger.info('Redirecionando callback OAuth antigo para /v1');
     const queryString = new URLSearchParams(req.query as any).toString();
     res.redirect(301, `${config.apiPrefix}/auth/google/callback?${queryString}`);
   });
 
-  // Log configurations
+  // Log das configurações de rota
   logger.info(`Google Callback URL: ${config.oauth.google.callbackURL}`);
 
-  // API routes
+  // Rotas da API
   app.use(`${config.apiPrefix}/auth`, authRoutes);
   app.use(`${config.apiPrefix}/users`, userRoutes);
   
@@ -154,10 +154,10 @@ export function createApp(): Application {
   // Payment routes (webhook não deve ter o prefixo da API para facilitar a configuração no Mercado Pago)
   app.use('/api/payments', paymentRoutes);
 
-  // Serve uploaded files
+  // Servir arquivos enviados pelos usuários
   app.use('/uploads', express.static(path.join(__dirname, '../uploads'), {
     setHeaders: (res, filePath) => {
-      // Set appropriate headers for security
+      // Define cabeçalhos de cache para imagens
       if (filePath.endsWith('.jpg') || filePath.endsWith('.jpeg') ||
         filePath.endsWith('.png') || filePath.endsWith('.gif')) {
         res.setHeader('Cache-Control', 'public, max-age=31536000');
@@ -165,10 +165,10 @@ export function createApp(): Application {
     }
   }));
 
-  // 404 handler
+  // Handler de rota não encontrada (404)
   app.use(routeNotFound);
 
-  // Error handler
+  // Handler global de erros
   app.use(errorHandler);
 
   return app;

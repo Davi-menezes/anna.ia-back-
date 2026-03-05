@@ -14,9 +14,9 @@ const server: Server = createServer(app);
 // Conecta ao banco de dados e inicia o servidor
 async function startServer(): Promise<void> {
   try {
-    // Initialize database connection
+    // Inicializa a conexão com o banco de dados
     await AppDataSource.initialize();
-    logger.info('✅ Connected to PostgreSQL database');
+    logger.info('✅ Conectado ao banco de dados PostgreSQL');
 
     const runMigrations = String(process.env.RUN_MIGRATIONS || '').toLowerCase() === 'true';
     if (runMigrations) {
@@ -33,7 +33,7 @@ async function startServer(): Promise<void> {
       await initializer.initialize();
       logger.info('✅ Deployment initialization completed');
     }
-    // Start the server
+    // Inicia o servidor HTTP
     server.listen(config.port, () => {
       logger.info(`
         🚀 Server running at http://localhost:${config.port}
@@ -52,15 +52,15 @@ startServer();
 
 // Tratamento de erros não capturados
 process.on('unhandledRejection', (reason: Error | any) => {
-  logger.error('Unhandled Rejection:', reason);
+  logger.error('Rejeição não tratada:', reason);
   server.close(() => {
     process.exit(1);
   });
 });
 
 process.on('SIGTERM', () => {
-  logger.info('SIGTERM received. Shutting down gracefully...');
+  logger.info('SIGTERM recebido. Encerrando o servidor...');
   server.close(() => {
-    logger.info('Process terminated');
+    logger.info('Processo encerrado');
   });
 });

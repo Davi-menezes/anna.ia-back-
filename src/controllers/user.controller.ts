@@ -44,48 +44,48 @@ export const updateProfilePicture = async (req: Request, res: Response) => {
       });
     }
 
-    // If user already has a profile picture, delete the old one
+    // Se o usuário já tem foto de perfil, remove a antiga
     if (existingUser.profilePicture) {
       deleteFile(existingUser.profilePicture);
     }
 
-    // Update user's profile picture path
+    // Atualiza o caminho da foto de perfil no banco
     const relativePath = path.relative('uploads', req.file.path);
     const dbPath = relativePath.replace(/\\/g, '/');
     existingUser.profilePicture = dbPath;
 
-    logger.info(`Updating profile picture for user ${userId} to: ${dbPath}`);
+    logger.info(`Atualizando foto de perfil do usuário ${userId} para: ${dbPath}`);
 
-    // Save the updated user using save() (triggers subscribers)
+    // Salva via save() para acionar os subscribers do TypeORM
     await userRepository.save(existingUser);
 
-    // Fallback: Use direct update to ensure database persistence if save() has issues with specific fields
+    // Garante persistência mesmo que o save() não atualize o campo específico
     await userRepository.update(userId, { profilePicture: dbPath });
 
-    logger.info(`Profile picture persisted in DB for user ${userId}. Refreshing user data...`);
+    logger.info(`Foto de perfil persistida no banco para usuário ${userId}. Recarregando dados...`);
 
-    // Reload user to verify persistence and get updated timestamps
+    // Recarrega o usuário para obter os timestamps atualizados
     const updatedUser = await userRepository.findOneBy({ id: userId });
 
-    // Return the updated user data (without sensitive information)
+    // Retorna os dados do usuário sem informações sensíveis
     const { password, ...userData } = updatedUser || existingUser;
 
     res.status(200).json({
       success: true,
-      message: 'Profile picture updated successfully',
+      message: 'Foto de perfil atualizada com sucesso',
       user: userData,
     });
   } catch (error) {
-    logger.error('Error updating profile picture:', error);
+    logger.error('Erro ao atualizar foto de perfil:', error);
 
-    // Try to delete the uploaded file in case of error
+    // Tenta remover o arquivo enviado em caso de erro
     if (req.file?.path) {
       deleteFile(req.file.path);
     }
 
     res.status(500).json({
       success: false,
-      message: 'Error updating profile picture',
+      message: 'Erro ao atualizar foto de perfil',
       error: process.env.NODE_ENV === 'development' ? error : undefined,
     });
   }
@@ -112,7 +112,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Update fields
+    // Atualiza os campos fornecidos
     if (birthDate !== undefined) existingUser.birthDate = birthDate ? new Date(birthDate) : undefined;
     if (education !== undefined) existingUser.education = education;
     if (location !== undefined) existingUser.location = location;
@@ -128,7 +128,7 @@ export const updateProfile = async (req: Request, res: Response) => {
       user: userData,
     });
   } catch (error) {
-    logger.error('Error updating profile:', error);
+    logger.error('Erro ao atualizar perfil:', error);
     res.status(500).json({
       success: false,
       message: 'Erro ao atualizar perfil',
@@ -139,7 +139,7 @@ export const updateProfile = async (req: Request, res: Response) => {
 
 export const getProfile = async (req: Request, res: Response) => {
   try {
-    // Get user from authenticated request
+    // Obtém o usuário da requisição autenticada
     const user = req.user;
     if (!user) {
       return res.status(401).json({
@@ -148,7 +148,7 @@ export const getProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Get user repository and find user by ID
+    // Busca o usuário completo no banco de dados
     const userRepository = AppDataSource.getRepository(User);
     const userData = await userRepository.findOne({
       where: { id: user.id },
@@ -162,16 +162,16 @@ export const getProfile = async (req: Request, res: Response) => {
       });
     }
 
-    // Return user data
+    // Retorna os dados do usuário
     res.status(200).json({
       success: true,
       user: userData,
     });
   } catch (error) {
-    logger.error('Error fetching user profile:', error);
+    logger.error('Erro ao buscar perfil do usuário:', error);
     res.status(500).json({
       success: false,
-      message: 'Error fetching user profile',
+      message: 'Erro ao buscar perfil do usuário',
       error: process.env.NODE_ENV === 'development' ? error : undefined,
     });
   }
@@ -206,7 +206,7 @@ export const deductCredits = async (req: Request, res: Response) => {
       });
     }
 
-    // Convert decimal from DB to number just in case
+    // Converte decimal do banco para número
     const currentCredits = Number(existingUser.credits);
 
     if (currentCredits < amount) {
@@ -227,7 +227,7 @@ export const deductCredits = async (req: Request, res: Response) => {
       credits: existingUser.credits
     });
   } catch (error) {
-    logger.error('Error deducting credits:', error);
+    logger.error('Erro ao deduzir créditos:', error);
     res.status(500).json({
       success: false,
       message: 'Erro ao deduzir créditos',
@@ -236,13 +236,13 @@ export const deductCredits = async (req: Request, res: Response) => {
   }
 };
 
-// Function to serve profile pictures
+// Serve a foto de perfil do usuário pelo ID
 export const serveProfilePicture = async (req: Request, res: Response) => {
   try {
     const userId = req.params.userId as string;
 
     if (!userId) {
-      // Return default avatar instead of error
+      // Retorna avatar padrão quando não há ID
       return res.sendFile(
         path.join(__dirname, '../../public/default-avatar.png')
       );
@@ -255,20 +255,20 @@ export const serveProfilePicture = async (req: Request, res: Response) => {
     });
 
     if (!user || !user.profilePicture) {
-      // Return default avatar instead of 404
-      logger.info(`User ${userId} has no profile picture, serving default avatar`);
+      // Retorna avatar padrão em vez de 404
+      logger.info(`Usuário ${userId} sem foto de perfil, servindo avatar padrão`);
       return res.sendFile(
         path.join(__dirname, '../../public/default-avatar.png')
       );
     }
 
-    // If it's a Google photo URL, redirect to it
+    // Se for URL do Google, redireciona diretamente
     if (user.profilePicture.startsWith('http://') || user.profilePicture.startsWith('https://')) {
-      logger.info(`Redirecting to Google photo for user ${userId}`);
+      logger.info(`Redirecionando para foto do Google do usuário ${userId}`);
       return res.redirect(user.profilePicture);
     }
 
-    // Try multiple path resolutions to be robust
+    // Tenta múltiplos caminhos para garantir robustez
     const possiblePaths = [
       path.join(__dirname, '../../uploads', user.profilePicture),
       path.join(__dirname, '../../uploads/profile-pictures', path.basename(user.profilePicture)),
@@ -282,7 +282,7 @@ export const serveProfilePicture = async (req: Request, res: Response) => {
       if (fs.existsSync(filePath)) {
         res.sendFile(filePath, (err) => {
           if (err && !res.headersSent) {
-            logger.error(`Error sending file at ${filePath}:`, err);
+            logger.error(`Erro ao enviar arquivo em ${filePath}:`, err);
           }
         });
         fileSent = true;
@@ -291,16 +291,16 @@ export const serveProfilePicture = async (req: Request, res: Response) => {
     }
 
     if (!fileSent) {
-      // If file not found, serve default avatar instead of error
-      logger.warn(`Profile picture file not found at any expected location for user ${userId}. Path from DB: ${user.profilePicture}. Serving default avatar.`);
+      // Arquivo não encontrado — serve avatar padrão
+      logger.warn(`Foto de perfil não encontrada para o usuário ${userId}. Caminho no banco: ${user.profilePicture}. Servindo avatar padrão.`);
       return res.sendFile(
         path.join(__dirname, '../../public/default-avatar.png')
       );
     }
 
   } catch (error) {
-    logger.error('Error serving profile picture:', error);
-    // On error, also serve default avatar
+    logger.error('Erro ao servir foto de perfil:', error);
+    // Em caso de erro, também serve o avatar padrão
     return res.sendFile(
       path.join(__dirname, '../../public/default-avatar.png')
     );

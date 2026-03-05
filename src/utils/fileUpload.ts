@@ -4,11 +4,11 @@ import { v4 as uuidv4 } from 'uuid';
 import path from 'path';
 import { logger } from './logger';
 
-// Define the allowed file types
+// Tipos de arquivo permitidos para upload
 const ALLOWED_FILE_TYPES = ['image/jpeg', 'image/png', 'image/jpg', 'image/gif'];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-// Configure storage
+// Configuração de armazenamento no disco
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, 'uploads/profile-pictures/');
@@ -19,7 +19,7 @@ const storage = multer.diskStorage({
   },
 });
 
-// File filter function
+// Função de filtro de tipo de arquivo
 const fileFilter = (
   req: Request,
   file: Express.Multer.File,
@@ -28,11 +28,11 @@ const fileFilter = (
   if (ALLOWED_FILE_TYPES.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPEG, JPG, PNG, and GIF are allowed.'));
+    cb(new Error('Tipo de arquivo inválido. Apenas JPEG, JPG, PNG e GIF são permitidos.'));
   }
 };
 
-// Create multer instance
+// Instância do multer com as configurações definidas
 const upload = multer({
   storage,
   fileFilter,
@@ -41,14 +41,14 @@ const upload = multer({
   },
 });
 
-// Middleware for handling file upload errors
+// Middleware para tratamento de erros de upload
 const handleUploadErrors = (err: any, req: Request, res: any, next: any) => {
   if (err instanceof multer.MulterError) {
-    // A Multer error occurred when uploading
+    // Erro gerado pelo próprio multer
     if (err.code === 'LIMIT_FILE_SIZE') {
       return res.status(400).json({
         success: false,
-        message: 'File size too large. Maximum size is 5MB.'
+        message: 'Arquivo muito grande. O tamanho máximo permitido é 5MB.'
       });
     }
     return res.status(400).json({
@@ -56,11 +56,11 @@ const handleUploadErrors = (err: any, req: Request, res: any, next: any) => {
       message: err.message
     });
   } else if (err) {
-    // An unknown error occurred
-    logger.error('File upload error:', err);
+    // Erro desconhecido durante o upload
+    logger.error('Erro no upload do arquivo:', err);
     return res.status(500).json({
       success: false,
-      message: 'Error uploading file'
+      message: 'Erro ao enviar arquivo'
     });
   }
   next();
@@ -68,31 +68,30 @@ const handleUploadErrors = (err: any, req: Request, res: any, next: any) => {
 
 export { upload, handleUploadErrors };
 
-// Function to delete a file
-// This will be used to delete old profile pictures when a new one is uploaded
+// Remove um arquivo do disco (utilizado ao trocar foto de perfil)
 export const deleteFile = (filePath: string) => {
   const fs = require('fs');
   const path = require('path');
 
   if (!filePath) return false;
 
-  // If the path doesn't start with 'uploads/', prepend it
+  // Normaliza o caminho para sempre começar com 'uploads/'
   const sanitizedPath = filePath.startsWith('uploads/') ? filePath : `uploads/${filePath}`;
 
-  // Construct the full path relative to this file's location (src/utils/)
+  // Constrói o caminho absoluto relativo a src/utils/
   const fullPath = path.join(__dirname, '../../', sanitizedPath);
 
-  // Check if file exists before trying to delete
+  // Verifica se o arquivo existe antes de tentar remover
   if (fs.existsSync(fullPath)) {
     try {
       fs.unlinkSync(fullPath);
       return true;
     } catch (err) {
-      logger.error('Error deleting file:', err);
+      logger.error('Erro ao deletar arquivo:', err);
       return false;
     }
   } else {
-    logger.warn(`File not found for deletion: ${fullPath}`);
+    logger.warn(`Arquivo não encontrado para exclusão: ${fullPath}`);
   }
   return false;
 };

@@ -176,7 +176,7 @@ export const googleCallback = async (req: Request, res: Response) => {
 
 export const getCurrentUser = async (req: Request, res: Response) => {
   try {
-    // @ts-ignore - Auth middleware adds user object
+    // O middleware de autenticação injeta o usuário na requisição
     const userId = (req.user as any).id;
     const userRepository = AppDataSource.getRepository(User);
 
@@ -189,7 +189,7 @@ export const getCurrentUser = async (req: Request, res: Response) => {
       });
     }
 
-    // Remove sensitive data manually since .select() is Mongoose specific
+    // Remove dados sensíveis antes de retornar (TypeORM não tem .select() como o Mongoose)
     const { password, ...safeUser } = user;
 
     res.status(200).json({

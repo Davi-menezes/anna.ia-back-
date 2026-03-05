@@ -55,7 +55,7 @@ export const config = {
 
   // Gemini AI
   gemini: {
-    apiKey: process.env.GEMINI_API_KEY || '',
+    apiKey: (process.env.GEMINI_API_KEY || '').replace(/"/g, '').trim(),
   },
 
   // Resend Email

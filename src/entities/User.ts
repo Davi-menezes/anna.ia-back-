@@ -81,10 +81,10 @@ export class User {
   passwordResetExpires?: Date;
 
   @OneToMany(() => StudyPlan, studyPlan => studyPlan.user)
-  studyPlans!: StudyPlan[]; // Changed from OneToOne to OneToMany
+  studyPlans!: StudyPlan[]; // Alterado de OneToOne para OneToMany
 
   @OneToMany(() => ChatMessage, chatMessage => chatMessage.user)
-  chatMessages!: ChatMessage[]; // Added chatMessages relationship
+  chatMessages!: ChatMessage[]; // Relacionamento com mensagens do chat
 
   @CreateDateColumn({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP', name: 'created_at' })
   createdAt!: Date;
@@ -95,14 +95,14 @@ export class User {
   generateEmailVerificationToken(): string {
     const token = crypto.randomBytes(32).toString('hex');
     this.emailVerificationToken = token;
-    this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
+    this.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
     return token;
   }
 
   generatePasswordResetToken(): string {
     const token = crypto.randomBytes(32).toString('hex');
     this.passwordResetToken = token;
-    this.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+    this.passwordResetExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
     return token;
   }
 

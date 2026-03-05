@@ -14,11 +14,11 @@ export class StudyPlanSubject {
     subjectName!: string;
 
     @Column({ type: 'integer', default: 1 })
-    level!: number; // 1-5 (beginner to advanced)
+    level!: number; // 1-5 (iniciante a avançado)
 
     @Column({ type: 'integer', default: 1 })
-    priority!: number; // Calculated based on weaknesses
+    priority!: number; // Calculada com base nas fraquezas do aluno
 
     @Column({ type: 'jsonb', nullable: true })
-    errorPatterns?: any; // To store AI analysis of user mistakes
+    errorPatterns?: any; // Análise da IA sobre os erros do usuário
 }
