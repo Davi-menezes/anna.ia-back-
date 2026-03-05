@@ -46,12 +46,25 @@ async function generateWithGeminiV1(params: {
     model: string;
     history?: Array<{ role: 'user' | 'model'; content: string }>;
     prompt: string;
+    imageBase64?: string;
+    imageMimeType?: string;
 }): Promise<string> {
     const url = `https://generativelanguage.googleapis.com/v1/models/${encodeURIComponent(params.model)}:generateContent`;
 
+    // Monta as partes do último turno do usuário (texto + imagem opcional)
+    const userParts: Array<Record<string, unknown>> = [{ text: params.prompt }];
+    if (params.imageBase64 && params.imageMimeType) {
+        userParts.push({
+            inline_data: {
+                mime_type: params.imageMimeType,
+                data: params.imageBase64
+            }
+        });
+    }
+
     const contents = [
         ...(params.history || []).map(m => ({ role: m.role, parts: [{ text: m.content }] })),
-        { role: 'user', parts: [{ text: params.prompt }] }
+        { role: 'user', parts: userParts }
     ];
 
     logger.info(`Gemini mode=rest_v1 model=${params.model} url=${url}`);
@@ -86,6 +99,8 @@ async function generateWithGeminiV1AutoModel(params: {
     model: string;
     history?: Array<{ role: 'user' | 'model'; content: string }>;
     prompt: string;
+    imageBase64?: string;
+    imageMimeType?: string;
 }, attempt: number = 0): Promise<string> {
     try {
         return await generateWithGeminiV1(params);
@@ -122,7 +137,7 @@ async function generateWithGeminiV1AutoModel(params: {
 
 export const generateResponse = async (req: Request, res: Response) => {
     try {
-        const { prompt, history } = req.body;
+        const { prompt, history, imageBase64, imageMimeType } = req.body;
         const user = req.user;
 
         logger.info(`Gemini API Key present: ${!!config.gemini.apiKey}`);
@@ -144,10 +159,17 @@ export const generateResponse = async (req: Request, res: Response) => {
             });
         }
 
-        if (!prompt) {
+        if (!prompt && !imageBase64) {
             return res.status(400).json({
                 success: false,
-                message: 'O prompt é obrigatório',
+                message: 'O prompt ou uma imagem são obrigatórios',
+            });
+        }
+
+        if (imageBase64 && imageBase64.length > 10_000_000) {
+            return res.status(413).json({
+                success: false,
+                message: 'Imagem muito grande. Envie imagens com menos de 7 MB.',
             });
         }
 
@@ -194,25 +216,31 @@ export const generateResponse = async (req: Request, res: Response) => {
         let text = '';
         try {
             const systemPrompt = `Atue como um Professor Profissional Altamente Qualificado e Especialista em Didática.
-                
+
 SUA PERSONALIDADE E MÉTODO:
 - Você é paciente, encorajador e extremamente claro.
 - **IMPORTANTE**: Responda à pergunta do aluno de forma DIRETA, COMPLETA e PRECISA logo no início. NÃO use introduções excessivamente longas ou genéricas antes de fornecer a informação solicitada.
 - **REGRAS DE FORMATAÇÃO ESTRITAS**:
-    - **USE LaTeX** para todas as fórmulas matemáticas, equações e símbolos científicos (use \\( ... \\) para fórmulas na linha/inline e $$...$$ para blocos destacados).
-    - Exemplos: use "\\(\\sqrt{3}\\)" ou "$$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$".
+    - **USE LaTeX** para TODAS as fórmulas matemáticas, equações e símbolos científicos.
+    - Para fórmulas na linha (inline), use EXATAMENTE o formato: $fórmula$ — exemplo: $\\sqrt{4} = 2$, $x^2$, $2 \\times 2 = 4$.
+    - Para blocos destacados (display), use EXATAMENTE o formato: $$fórmula$$ — exemplo: $$x = \\frac{-b \\pm \\sqrt{b^2 - 4ac}}{2a}$$
+    - NUNCA use parênteses simples (fórmula) para delimitar LaTeX. Use SEMPRE $ ou $$.
     - Use Markdown para estruturar a resposta: **negrito** para ênfase, títulos com ## e listas se necessário.
     - Evite separadores como "***" ou "---" em excesso.
 - Explique os conceitos de forma DETALHADA, mas usando linguagem SIMPLES e INTUITIVA.
 - Use analogias do dia a dia para facilitar o entendimento.
 - Se a pergunta envolver fórmulas ou cálculos (como Bhaskara ou Raízes), forneça a fórmula completa, o passo a passo da resolução e o resultado final de forma bem estruturada.
-- O objetivo é que o aluno saia da conversa tendo entendido o "porquê" e o "como", com uma resposta que não pareça incompleta.
+- O objetivo é que o aluno saia da conversa tendo entendido o "porquê" e o "como", não apenas a resposta.
+
+REGRA FUNDAMENTAL — NUNCA DÊ SÓ A RESPOSTA:
+- Se o aluno pedir apenas o resultado ("me dê só a resposta", "qual é o resultado", "só me fala a resposta", "me dá a solução logo", "sem explicação" ou variantes), recuse e explique o motivo:
+  "Meu papel é te ensinar, não apenas fornecer respostas prontas! Isso não te ajudaria a aprender. Vamos resolver juntos passo a passo — você vai entender e conseguirá resolver sozinho nas próximas vezes. Pode me enviar o problema completo?"
 
 REGRAS ESTRITAS DE CONTEÚDO:
 - Você ACEITA APENAS perguntas relacionadas a MATÉRIAS ESCOLARES (Português, Matemática, História, Geografia, Biologia, Química, Física, Filosofia, Sociologia, Inglês, Literatura, Redação) e preparação para VESTIBULARES/ENEM.
 - Se o usuário perguntar sobre qualquer outro assunto, recuse educadamente com a mensagem padrão abaixo.
 
-MENSAGEM DE RECUSA PADRÃO:
+MENSAGEM DE RECUSA PADRÃO (fora do escopo escolar):
 "Desculpe, mas como seu professor virtual, meu foco é exclusivamente ajudar você em seus estudos e matérias escolares. Vamos voltar para o aprendizado? O que você está estudando hoje?"`;
 
             const historyRaw = (history || []).map((msg: any) => ({
@@ -232,7 +260,9 @@ MENSAGEM DE RECUSA PADRÃO:
                 apiKey: config.gemini.apiKey,
                 model: GEMINI_MODEL,
                 history: safeHistory,
-                prompt: `${systemPrompt}\n\nPergunta do aluno: ${normalizedPrompt}`
+                prompt: `${systemPrompt}\n\nPergunta do aluno: ${normalizedPrompt}`,
+                imageBase64: imageBase64 || undefined,
+                imageMimeType: imageMimeType || undefined,
             });
 
             if (!text) {

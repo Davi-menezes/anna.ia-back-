@@ -5,7 +5,7 @@ import AppDataSource from '../config/data-source';
 import { logger } from '../utils/logger';
 import { config } from '../config/config';
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-2.0-flash';
+const GEMINI_MODEL = process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest';
 
 // Chamada direta à API REST v1 do Gemini (evita problemas de compatibilidade com o SDK)
 async function callGeminiV1(apiKey: string, model: string, prompt: string): Promise<string> {
@@ -127,9 +127,11 @@ export const generateFlashcards = async (req: Request, res: Response) => {
       return res.status(404).json({ success: false, message: 'Usuário não encontrado' });
     }
 
-    // VERIFICAR LIMITE DIÁRIO (10 flashcards/dia)
+    // VERIFICAR LIMITE DIÁRIO (10 flashcards/dia) — seguro mesmo se as colunas ainda não existem no banco
     const today = new Date().toISOString().split('T')[0];
-    if (currentUser.lastFlashcardGenDate === today && currentUser.flashcardsGenCount >= 10) {
+    const genCount = currentUser.flashcardsGenCount ?? 0;
+    const genDate = currentUser.lastFlashcardGenDate ?? null;
+    if (genDate === today && genCount >= 10) {
       return res.status(400).json({
         success: false,
         message: 'Limite diário de 10 flashcards atingido. Tente novamente amanhã.'
@@ -231,14 +233,20 @@ export const generateFlashcards = async (req: Request, res: Response) => {
 
     // Atualizar usuário: Dedução de créditos e incremento do contador diário
     const newGenCount = currentUser.lastFlashcardGenDate === today
-      ? currentUser.flashcardsGenCount + savedFlashcards.length
+      ? (currentUser.flashcardsGenCount || 0) + savedFlashcards.length
       : savedFlashcards.length;
 
-    await userRepository.update(user.id, {
-      credits: Number(currentUser.credits) - 0.5,
-      lastFlashcardGenDate: today,
-      flashcardsGenCount: newGenCount
-    });
+    try {
+      await userRepository.update(user.id, {
+        credits: Number(currentUser.credits) - 0.5,
+        lastFlashcardGenDate: today,
+        flashcardsGenCount: newGenCount
+      });
+    } catch (updateErr: any) {
+      // Se as colunas de controle diário não existem (migração pendente), deduz apenas os créditos
+      logger.warn('Falha ao atualizar contadores diários de flashcard (migração pendente?). Deduzindo apenas créditos.', updateErr?.message);
+      await userRepository.update(user.id, { credits: Number(currentUser.credits) - 0.5 });
+    }
 
     res.json({
       success: true,
@@ -268,6 +276,18 @@ export const generateFlashcards = async (req: Request, res: Response) => {
         message: 'O serviço de IA está temporariamente indisponível devido a alta demanda. Por favor, tente novamente em alguns minutos.',
         code: 'GEMINI_QUOTA_EXCEEDED',
         retryAfter: 60 // Suggest retry after 60 seconds
+      });
+    }
+
+    // Detecta erro de tabela inexistente (migração pendente no banco de produção)
+    const isPgMissingTable = error.message?.includes('relation') && error.message?.includes('does not exist');
+    const isPgMissingColumn = error.message?.includes('column') && error.message?.includes('does not exist');
+    if (isPgMissingTable || isPgMissingColumn) {
+      logger.error('Erro de schema no banco: tabela ou coluna não encontrada. Execute as migrações (RUN_MIGRATIONS=true).', error.message);
+      return res.status(503).json({
+        success: false,
+        message: 'O banco de dados precisa ser atualizado. Entre em contato com o suporte.',
+        code: 'DB_MIGRATION_REQUIRED'
       });
     }
 
